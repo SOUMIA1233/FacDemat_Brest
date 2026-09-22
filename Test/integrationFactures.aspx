@@ -1,9 +1,14 @@
-﻿<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master" MaintainScrollPositionOnPostback="true"
-    Title="Intégration de Factures fournisseur" CodeFile="integrationFactures.aspx.vb" Inherits="integrationFactures"
-    Culture="fr-FR" UICulture="fr-FR" CodePage="65001" %>
+﻿<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
+    MaintainScrollPositionOnPostback="true" Title="Intégration de Factures fournisseur"
+    CodeFile="integrationFactures.aspx.vb" Inherits="integrationFactures" Culture="fr-FR" UICulture="fr-FR"
+    CodePage="65001" %>
     <%@ Register TagPrefix="telerik" Namespace="Telerik.Web.UI" Assembly="Telerik.Web.UI" %>
         <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="Server">
             <style>
+                .RadGrid .rgRow>td, .RadGrid .rgAltRow>td, .RadGrid .rgEditRow>td, .RadGrid .rgFooter>td, .RadGrid .rgFilterRow>td, .RadGrid .rgHeader, .RadGrid .rgResizeCol, .RadGrid .rgGroupHeader td {
+                    padding-left: 5px !important;
+                    padding-right: 8px !important;
+                }
                 .tooltip-cycle {
                     position: relative;
                     display: inline-block;
@@ -111,415 +116,582 @@
                                 </telerik:RadButton>
                             </div>
 
-                            <telerik:RadTabStrip ID="rtsFacturesDemat" runat="server" MultiPageID="rmpFacturesDemat" SelectedIndex="0" Skin="MetroTouch" Style="margin-bottom: 10px;">
+                            <telerik:RadWindowManager ID="RadWindowManager1" runat="server" Skin="MetroTouch">
+                            </telerik:RadWindowManager>
+                            <telerik:RadTabStrip ID="rtsFacturesDemat" runat="server" MultiPageID="rmpFacturesDemat"
+                                SelectedIndex="0" Skin="MetroTouch" Style="margin-bottom: 10px;">
                                 <Tabs>
-                                    <telerik:RadTab Text="Factures en cours de traitement" Value="InProgress" PageViewID="rpvInProgress"></telerik:RadTab>
-                                    <telerik:RadTab Text="Historique (Terminées)" Value="History" PageViewID="rpvHistory"></telerik:RadTab>
+                                    <telerik:RadTab Text="Factures en cours de traitement" Value="InProgress"
+                                        PageViewID="rpvInProgress"></telerik:RadTab>
+                                    <telerik:RadTab Text="Historique (Terminées)" Value="History"
+                                        PageViewID="rpvHistory"></telerik:RadTab>
                                 </Tabs>
                             </telerik:RadTabStrip>
 
                             <telerik:RadMultiPage ID="rmpFacturesDemat" runat="server" SelectedIndex="0">
                                 <telerik:RadPageView ID="rpvInProgress" runat="server">
                                     <telerik:RadGrid ID="rgFacturesDemat" runat="server" AutoGenerateColumns="False"
-                                        Width="100%" AllowPaging="True" PageSize="20" Skin="MetroTouch" CssClass="factures-grid"
-                                        OnNeedDataSource="rgFacturesDemat_NeedDataSource"
-                                OnItemDataBound="rgFacturesDemat_ItemDataBound"
-                                OnItemCommand="rgFacturesDemat_ItemCommand">
-                                <MasterTableView DataKeyNames="IdFacture" CommandItemDisplay="None"
-                                    HierarchyLoadMode="Client" RetainExpandStateOnRebind="true">
-                                    <Columns>
-                                        <telerik:GridTemplateColumn HeaderText="Statut" UniqueName="Statut"
-                                            DataField="Statut" SortExpression="Statut">
-                                            <ItemTemplate>
-                                                <asp:Label ID="lblStatutDemat" runat="server"
-                                                    Text='<%# Eval("Statut") %>'
-                                                    CssClass='<%# "statut-badge statut-" & Eval("Statut").ToString().ToLower() %>'>
-                                                </asp:Label>
-                                            </ItemTemplate>
-                                        </telerik:GridTemplateColumn>
-                                        <telerik:GridBoundColumn DataField="NumFacture" HeaderText="N° Facture"
-                                            UniqueName="NumFacture"></telerik:GridBoundColumn>
-                                        <telerik:GridBoundColumn DataField="DateFacture" HeaderText="Date Facture"
-                                            UniqueName="DateFacture" DataFormatString="{0:dd/MM/yyyy}"
-                                            FilterControlWidth="100px"></telerik:GridBoundColumn>
-                                        <telerik:GridTemplateColumn HeaderText="FOURNISSEUR"
-                                            UniqueName="FournisseurDemat" DataField="RaisonSociale"
-                                            SortExpression="RaisonSociale" HeaderStyle-Width="250px">
-                                            <ItemTemplate>
-                                                <asp:Panel ID="pnlFournisseurDemat" runat="server">
-                                                    <div style="white-space: nowrap;">
-                                                        <asp:TextBox ID="txtSiretDemat" runat="server" Visible="false"
-                                                            MaxLength="14" CssClass="textbox-siret-custom"
-                                                            Style="vertical-align: middle;" placeholder="14 chiffres">
-                                                        </asp:TextBox>
-                                                        <telerik:RadButton ID="btnValiderSiretDemat" runat="server"
-                                                            Visible="false" ButtonType="StandardButton"
-                                                            ToolTip="Valider le SIRET" CommandName="ValidateSiret"
-                                                            CommandArgument='<%# Eval("IdFacture") %>'
-                                                            Style="vertical-align: middle; margin-left: 4px; "
-                                                            CssClass="btn-valider">
-                                                            <Icon PrimaryIconCssClass="rbOk" />
-                                                        </telerik:RadButton>
-                                                    </div>
+                                        Width="100%" AllowPaging="True" PageSize="20" Skin="MetroTouch"
+                                        CssClass="factures-grid" OnNeedDataSource="rgFacturesDemat_NeedDataSource"
+                                        OnItemDataBound="rgFacturesDemat_ItemDataBound"
+                                        OnItemCommand="rgFacturesDemat_ItemCommand">
+                                        <MasterTableView DataKeyNames="IdFacture" CommandItemDisplay="None"
+                                            HierarchyLoadMode="Client" RetainExpandStateOnRebind="true">
+                                            <Columns>
+                                                <telerik:GridTemplateColumn HeaderText="Statut" UniqueName="Statut"
+                                                    DataField="Statut" SortExpression="Statut"
+                                                    HeaderStyle-Width="160px">
+                                                    <ItemTemplate>
+                                                        <asp:Label ID="lblStatutDemat" runat="server"
+                                                            Text='<%# Eval("Statut") %>'
+                                                            CssClass='<%# "statut-badge statut-" & Eval("Statut").ToString().ToLower() %>'>
+                                                        </asp:Label>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
+                                                <telerik:GridBoundColumn DataField="NumFacture" HeaderText="N° Facture"
+                                                    UniqueName="NumFacture" HeaderStyle-Width="70px">
+                                                </telerik:GridBoundColumn>
+                                                <telerik:GridBoundColumn DataField="DateFacture"
+                                                    HeaderText="Date Facture" UniqueName="DateFacture"
+                                                    DataFormatString="{0:dd/MM/yyyy}" FilterControlWidth="80px"
+                                                    HeaderStyle-Width="70px">
+                                                </telerik:GridBoundColumn>
+                                                <telerik:GridTemplateColumn HeaderText="FOURNISSEUR"
+                                                    UniqueName="ColRaisonSociale" DataField="RaisonSociale"
+                                                    SortExpression="RaisonSociale" HeaderStyle-Width="150px">
+                                                    <ItemTemplate>
+                                                        <asp:Label ID="lblFournisseur" runat="server"
+                                                            Text='<%# Eval("RaisonSociale") %>'
+                                                            CssClass="label-fournisseur"
+                                                            Style="white-space: normal; line-height: 1.1;">
+                                                        </asp:Label>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
 
-                                                    <asp:Label ID="lblFournisseurDemat" runat="server"
-                                                        Text='<%# Eval("RaisonSociale") %>'
-                                                        CssClass="label-fournisseur">
-                                                    </asp:Label>
-                                                    <div style="margin-top: 5px;">
-                                                        <asp:Label ID="lblSiretMsg" runat="server" Visible="false"
-                                                            Font-Size="11px" Font-Bold="true"></asp:Label>
-                                                    </div>
-                                                </asp:Panel>
-                                            </ItemTemplate>
-                                        </telerik:GridTemplateColumn>
+                                                <telerik:GridTemplateColumn HeaderText="SIREN" UniqueName="Fournisseur"
+                                                    HeaderStyle-Width="120px">
+                                                    <ItemTemplate>
+                                                        <asp:Panel ID="pnlFournisseur" runat="server">
+                                                            <div style="white-space: nowrap;">
+                                                                <asp:Label ID="lblSirenText" runat="server" Visible="false" Style="margin-right: 5px; font-weight: bold;"></asp:Label>
+                                                                <asp:TextBox ID="txtSiret" runat="server" Visible="true"
+                                                                    MaxLength="9" CssClass="textbox-siret-custom"
+                                                                    Style="vertical-align: middle; width: 85px;"
+                                                                    placeholder="SIREN">
+                                                                </asp:TextBox>
+                                                                <telerik:RadButton ID="btnValiderSiret" runat="server"
+                                                                    Visible="true" ButtonType="StandardButton"
+                                                                    ToolTip="Valider le SIREN"
+                                                                    CommandName="ValidateSiret"
+                                                                    CommandArgument='<%# Eval("numOr") & "|" & Eval("NumFacture") %>'
+                                                                    Style="vertical-align: middle; margin-left: 4px; "
+                                                                    CssClass="btn-valider">
+                                                                    <Icon PrimaryIconCssClass="rbOk" />
+                                                                </telerik:RadButton>
+                                                            </div>
+                                                            <div style="margin-top: 5px;">
+                                                                <asp:Label ID="lblSiretMsg" runat="server"
+                                                                    Visible="false" Font-Size="11px" Font-Bold="true">
+                                                                </asp:Label>
+                                                            </div>
+                                                        </asp:Panel>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
 
-                                        <telerik:GridBoundColumn DataField="TotalHT" HeaderText="Total HT"
-                                            UniqueName="TotalHT" DataFormatString="{0:N2} €"
-                                            ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left"
-                                            ItemStyle-CssClass="nowrap"></telerik:GridBoundColumn>
-                                        <telerik:GridBoundColumn DataField="TotalTTC" HeaderText="Total TTC"
-                                            UniqueName="TotalTTC" DataFormatString="{0:N2} €"
-                                            ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left"
-                                            ItemStyle-CssClass="nowrap"></telerik:GridBoundColumn>
-                                        <telerik:GridBoundColumn DataField="NumOR" HeaderText="N° OR"
-                                            UniqueName="NumOR"></telerik:GridBoundColumn>
-                                        <telerik:GridTemplateColumn UniqueName="StatutCycleDeVie"
-                                            SortExpression="StatutCycleDeVie" HeaderStyle-Width="180px">
-                                            <HeaderTemplate>
-                                                Cycle de Vie (Maileva)
-                                                <span class="tooltip-cycle">
-                                                    <i class="info-icon">i</i>
-                                                    <span class="tooltiptext">
-                                                        <b>Prise en charge :</b> En cours de traitement<br />
-                                                        <b>Suspendue :</b> Erreur côté fournisseur. En attente de sa correction<br />
-                                                        <b>Refusée :</b> Facture définitivement rejetée (ex: doublon)<br />
-                                                        <b>Approuvée partiel. :</b> Intégrée avec des réserves<br />
-                                                        <b>Paiement Transmis :</b> Intégrée avec succès, paiement acté<br />
-                                                        <b>En litige :</b> Désaccord, en attente d'une action ou d'un avoir
-                                                    </span>
-                                                </span>
-                                            </HeaderTemplate>
-                                            <ItemTemplate>
-                                                <telerik:RadDropDownList ID="ddlStatutCycleDeVie" runat="server"
-                                                    AutoPostBack="true"
-                                                    OnSelectedIndexChanged="ddlStatutCycleDeVie_SelectedIndexChanged"
-                                                    SelectedValue='<%# If(IsDBNull(Eval("StatutCycleDeVie")) OrElse String.IsNullOrEmpty(Eval("StatutCycleDeVie").ToString()), "IN_PROCESS", Eval("StatutCycleDeVie").ToString().Trim().ToUpper()) %>'>
-                                                    <Items>
-                                                        <telerik:DropDownListItem Text="Prise en charge"
-                                                            Value="IN_PROCESS" />
-                                                        <telerik:DropDownListItem Text="Suspendue" Value="ON_HOLD" />
-                                                        <telerik:DropDownListItem Text="Refusée" Value="REFUSED" />
-                                                        <telerik:DropDownListItem Text="Approuvée Partiellement"
-                                                            Value="CONDITIONNALY_ACCEPTED" />
-                                                        <telerik:DropDownListItem Text="Paiement Transmis"
-                                                            Value="PAID" />
-                                                        <telerik:DropDownListItem Text="En litige"
-                                                            Value="UNDER_QUERY" />
-                                                    </Items>
-                                                </telerik:RadDropDownList>
-                                                <asp:HiddenField ID="hdnIdFactureCycle" runat="server"
-                                                    Value='<%# Eval("IdFacture") %>' />
-                                                <div style="margin-top:5px;">
-                                                    <asp:Label ID="lblCycleMsg" runat="server" Visible="false"
-                                                        Font-Size="11px" Font-Bold="true"></asp:Label>
+                                                <telerik:GridBoundColumn DataField="TotalHT" HeaderText="Total HT (€)"
+                                                    UniqueName="TotalHT" DataFormatString="{0:N2}"
+                                                    ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left"
+                                                    ItemStyle-CssClass="nowrap" HeaderStyle-Width="70px">
+                                                </telerik:GridBoundColumn>
+                                                <telerik:GridBoundColumn DataField="TotalTTC" HeaderText="Total TTC (€)"
+                                                    UniqueName="TotalTTC" DataFormatString="{0:N2}"
+                                                    ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left"
+                                                    ItemStyle-CssClass="nowrap" HeaderStyle-Width="70px">
+                                                </telerik:GridBoundColumn>
+                                                <telerik:GridBoundColumn DataField="NumOR" HeaderText="N° Commande"
+                                                    UniqueName="NumOR" HeaderStyle-Width="70px">
+                                                </telerik:GridBoundColumn>
+                                                <telerik:GridTemplateColumn UniqueName="StatutCycleDeVie"
+                                                    SortExpression="StatutCycleDeVie" HeaderStyle-Width="130px">
+                                                    <HeaderTemplate>
+                                                        Cycle de Vie (Maileva)
+                                                        <span class="tooltip-cycle">
+                                                            <i class="info-icon">i</i>
+                                                            <span class="tooltiptext">
+                                                                <b>Prise en charge :</b> En cours de traitement<br />
+                                                                <b>Suspendue :</b> Erreur côté fournisseur. En attente
+                                                                de sa correction<br />
+                                                                <b>Refusée :</b> Facture définitivement rejetée (ex:
+                                                                doublon)<br />
+                                                                <b>Approuvée partiel. :</b> Intégrée avec des
+                                                                réserves<br />
+                                                                <b>Paiement Transmis :</b> Intégrée avec succès,
+                                                                paiement acté<br />
+                                                                <b>En litige :</b> Désaccord, en attente d'une action ou
+                                                                d'un avoir
+                                                            </span>
+                                                        </span>
+                                                    </HeaderTemplate>
+                                                    <ItemTemplate>
+                                                        <telerik:RadDropDownList ID="ddlStatutCycleDeVie" runat="server"
+                                                            AutoPostBack="true"
+                                                            OnSelectedIndexChanged="ddlStatutCycleDeVie_SelectedIndexChanged"
+                                                            SelectedValue='<%# If(IsDBNull(Eval("StatutCycleDeVie")) OrElse String.IsNullOrEmpty(Eval("StatutCycleDeVie").ToString()), "IN_PROCESS", Eval("StatutCycleDeVie").ToString().Trim().ToUpper()) %>'>
+                                                            <Items>
+                                                                <telerik:DropDownListItem Text="Prise en charge"
+                                                                    Value="IN_PROCESS" />
+                                                                <telerik:DropDownListItem Text="Suspendue"
+                                                                    Value="ON_HOLD" />
+                                                                <telerik:DropDownListItem Text="Refusée"
+                                                                    Value="REFUSED" />
+                                                                <telerik:DropDownListItem Text="Approuvée Partiellement"
+                                                                    Value="CONDITIONNALY_ACCEPTED" />
+                                                                <telerik:DropDownListItem Text="Paiement Transmis"
+                                                                    Value="PAID" />
+                                                                <telerik:DropDownListItem Text="En litige"
+                                                                    Value="UNDER_QUERY" />
+                                                            </Items>
+                                                        </telerik:RadDropDownList>
+                                                        <asp:HiddenField ID="hdnIdFactureCycle" runat="server"
+                                                            Value='<%# Eval("IdFacture") %>' />
+                                                        <div style="margin-top:5px;">
+                                                            <asp:Label ID="lblCycleMsg" runat="server" Visible="false"
+                                                                Font-Size="11px" Font-Bold="true"></asp:Label>
+                                                        </div>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
+                                                <telerik:GridTemplateColumn HeaderText="PDF" UniqueName="VisualiserPDF"
+                                                    ItemStyle-HorizontalAlign="Center"
+                                                    HeaderStyle-HorizontalAlign="Center" HeaderStyle-Width="50px">
+                                                    <ItemTemplate>
+                                                        <a href='DownloadPdf.ashx?id=<%# Eval("IdFacture") %>'
+                                                            target="_blank"
+                                                            style="text-decoration:none; font-size:20px;"
+                                                            title="Visualiser la facture (PDF)">
+                                                            &#128196;
+                                                        </a>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
+                                                <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message">
+                                                    <ItemTemplate>
+                                                        <asp:Label ID="lblMessageDemat" runat="server"
+                                                            Text='<%# Eval("Message") %>'
+                                                            ToolTip='<%# Eval("Message") %>' Font-Size="15px">
+                                                        </asp:Label>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
+                                            </Columns>
+                                            <NestedViewTemplate>
+                                                <div
+                                                    style="display:flex; width:100%; height:600px; padding: 10px; background-color:#fafafa; border-bottom:1px solid #ddd;">
+                                                    <div style="flex:1; overflow-y:auto; padding-right:10px;">
+                                                        <h3 style="margin-top:0;">Lignes de prestation</h3>
+                                                        <telerik:RadGrid ID="rgLignesInternes" runat="server"
+                                                            Width="100%" AutoGenerateColumns="False" Skin="MetroTouch"
+                                                            OnNeedDataSource="rgLignesInternes_NeedDataSource"
+                                                            OnItemDataBound="rgLignesInternes_ItemDataBound"
+                                                            OnItemCommand="rgLignesInternes_ItemCommand">
+                                                            <MasterTableView DataKeyNames="IdFacture">
+                                                                <Columns>
+                                                                    <telerik:GridBoundColumn DataField="NumLig"
+                                                                        HeaderText="N° Ligne" UniqueName="NumLig">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridTemplateColumn
+                                                                        HeaderText="Code prestation fournisseur"
+                                                                        UniqueName="CodePrestaFournisseur"
+                                                                        DataField="CodePrestaFournisseur">
+                                                                        <ItemTemplate>
+                                                                            <div style="white-space: nowrap;">
+                                                                                <asp:TextBox ID="txtRefFournisseur"
+                                                                                    runat="server" Visible="false"
+                                                                                    MaxLength="50"
+                                                                                    CssClass="textbox-siret-custom"
+                                                                                    Style="vertical-align: middle; width: 120px; min-width: 120px;"
+                                                                                    placeholder="Référence">
+                                                                                </asp:TextBox>
+                                                                                <telerik:RadButton
+                                                                                    ID="btnValiderRefFournisseur"
+                                                                                    runat="server" Visible="false"
+                                                                                    ButtonType="StandardButton"
+                                                                                    ToolTip="Valider la référence"
+                                                                                    CommandName="ValidateRefFournisseur"
+                                                                                    CommandArgument='<%# Eval("IdFacture").ToString() & "|" & Eval("NumLig").ToString() %>'
+                                                                                    Style="vertical-align: middle; margin-left: 4px; "
+                                                                                    CssClass="btn-valider">
+                                                                                    <Icon PrimaryIconCssClass="rbOk" />
+                                                                                </telerik:RadButton>
+                                                                            </div>
+                                                                            <asp:Label ID="lblRefFournisseur"
+                                                                                runat="server"
+                                                                                Text='<%# Eval("CodePrestaFournisseur") %>'>
+                                                                            </asp:Label>
+                                                                        </ItemTemplate>
+                                                                    </telerik:GridTemplateColumn>
+                                                                    <telerik:GridTemplateColumn HeaderText="Code LocPro"
+                                                                        UniqueName="CodePrestaLP">
+                                                                        <ItemTemplate>
+                                                                            <telerik:RadLabel ID="lblCodePrestaLPDemat"
+                                                                                runat="server"
+                                                                                Text='<%# Eval("CodePrestaLP") %>'>
+                                                                            </telerik:RadLabel>
+                                                                            <telerik:RadButton ID="btnAjouterRegleDemat"
+                                                                                runat="server" Visible="false"
+                                                                                CommandName="AjouterRegleLigne"
+                                                                                CommandArgument='<%# Eval("NumOR") & "|" & Eval("NumFacture") & "|" & Eval("CodePrestaFournisseur") & "|" & Eval("Descr") & "|" & Eval("CodeFournisseur") %>'
+                                                                                ToolTip="Ajouter une correspondance LocPro"
+                                                                                ButtonType="LinkButton" Text="&#10133;"
+                                                                                CssClass="btn-ajouter-regle-mini">
+                                                                            </telerik:RadButton>
+                                                                        </ItemTemplate>
+                                                                    </telerik:GridTemplateColumn>
+                                                                    <telerik:GridBoundColumn DataField="Descr"
+                                                                        HeaderText="Désignation" UniqueName="Descr">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridBoundColumn DataField="Qte"
+                                                                        HeaderText="Qté" UniqueName="Qte"
+                                                                        DataFormatString="{0:N0}"
+                                                                        ItemStyle-HorizontalAlign="Center">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridBoundColumn DataField="PrixUnitHT"
+                                                                        HeaderText="Prix Unit. HT (€)"
+                                                                        UniqueName="PrixUnitHT"
+                                                                        DataFormatString="{0:N2}"
+                                                                        ItemStyle-HorizontalAlign="Left">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridBoundColumn DataField="TauxRemise"
+                                                                        HeaderText="Remise (%)" UniqueName="TauxRemise"
+                                                                        DataFormatString="{0:N2}"
+                                                                        ItemStyle-HorizontalAlign="Left">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridBoundColumn DataField="MontantNetHT"
+                                                                        HeaderText="Montant HT (€)"
+                                                                        UniqueName="MontantNetHT"
+                                                                        DataFormatString="{0:N2}"
+                                                                        ItemStyle-HorizontalAlign="Left">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridBoundColumn DataField="TVA"
+                                                                        HeaderText="TVA (%)" UniqueName="TVA"
+                                                                        DataFormatString="{0:N2}"
+                                                                        ItemStyle-HorizontalAlign="Right">
+                                                                    </telerik:GridBoundColumn>
+                                                                </Columns>
+                                                            </MasterTableView>
+                                                        </telerik:RadGrid>
+                                                    </div>
+                                                    <div id="divPdfViewer" runat="server"
+                                                        style="flex:1; padding-left:10px; border-left:1px solid #ccc;">
+                                                        <iframe id="iframePdf" runat="server"
+                                                            src='<%# "DownloadPdf.ashx?id=" & Eval("IdFacture").ToString() %>'
+                                                            width="100%" height="100%" style="border:none;"></iframe>
+                                                    </div>
                                                 </div>
-                                            </ItemTemplate>
-                                        </telerik:GridTemplateColumn>
-                                        <telerik:GridTemplateColumn HeaderText="PDF" UniqueName="VisualiserPDF"
-                                            ItemStyle-HorizontalAlign="Center" HeaderStyle-HorizontalAlign="Center">
-                                            <ItemTemplate>
-                                                <a href='DownloadPdf.ashx?id=<%# Eval("IdFacture") %>' target="_blank"
-                                                    style="text-decoration:none; font-size:20px;"
-                                                    title="Visualiser la facture (PDF)">
-                                                    &#128196;
-                                                </a>
-                                            </ItemTemplate>
-                                        </telerik:GridTemplateColumn>
-                                        <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message">
-                                            <ItemTemplate>
-                                                <asp:Label ID="lblMessageDemat" runat="server"
-                                                    Text='<%# Eval("Message") %>' ToolTip='<%# Eval("Message") %>'>
-                                                </asp:Label>
-                                            </ItemTemplate>
-                                        </telerik:GridTemplateColumn>
-                                    </Columns>
-                                    <NestedViewTemplate>
-                                        <div
-                                            style="display:flex; width:100%; height:600px; padding: 10px; background-color:#fafafa; border-bottom:1px solid #ddd;">
-                                            <div style="flex:1; overflow-y:auto; padding-right:10px;">
-                                                <h3 style="margin-top:0;">Lignes de prestation</h3>
-                                                <telerik:RadGrid ID="rgLignesInternes" runat="server" Width="100%"
-                                                    AutoGenerateColumns="False" Skin="MetroTouch"
-                                                    OnNeedDataSource="rgLignesInternes_NeedDataSource"
-                                                    OnItemDataBound="rgLignesInternes_ItemDataBound"
-                                                    OnItemCommand="rgLignesInternes_ItemCommand">
-                                                    <MasterTableView DataKeyNames="IdFacture">
-                                                        <Columns>
-                                                            <telerik:GridBoundColumn DataField="NumLig"
-                                                                HeaderText="N° Ligne" UniqueName="NumLig">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="CodePrestaFournisseur"
-                                                                HeaderText="Réf. Fournisseur"
-                                                                UniqueName="CodePrestaFournisseur">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridTemplateColumn HeaderText="Code LocPro"
-                                                                UniqueName="CodePrestaLP">
-                                                                <ItemTemplate>
-                                                                    <telerik:RadLabel ID="lblCodePrestaLPDemat"
-                                                                        runat="server"
-                                                                        Text='<%# Eval("CodePrestaLP") %>'>
-                                                                    </telerik:RadLabel>
-                                                                    <telerik:RadButton ID="btnAjouterRegleDemat"
-                                                                        runat="server" Visible="false"
-                                                                        CommandName="AjouterRegleLigne"
-                                                                        CommandArgument='<%# Eval("NumOR") & "|" & Eval("NumFacture") & "|" & Eval("CodePrestaFournisseur") & "|" & Eval("Descr") & "|" & Eval("CodeFournisseur") %>'
-                                                                        ToolTip="Ajouter une correspondance LocPro"
-                                                                        ButtonType="LinkButton" Text="&#10133;"
-                                                                        CssClass="btn-ajouter-regle-mini">
-                                                                    </telerik:RadButton>
-                                                                </ItemTemplate>
-                                                            </telerik:GridTemplateColumn>
-                                                            <telerik:GridBoundColumn DataField="Descr"
-                                                                HeaderText="Désignation" UniqueName="Descr">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="Qte" HeaderText="Qté"
-                                                                UniqueName="Qte" DataFormatString="{0:N0}"
-                                                                ItemStyle-HorizontalAlign="Center">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="PrixUnitHT"
-                                                                HeaderText="Prix Unit. HT" UniqueName="PrixUnitHT"
-                                                                DataFormatString="{0:N2} €"
-                                                                ItemStyle-HorizontalAlign="Left">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="TauxRemise"
-                                                                HeaderText="Remise %" UniqueName="TauxRemise"
-                                                                DataFormatString="{0:N2} %"
-                                                                ItemStyle-HorizontalAlign="Left">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="MontantNetHT"
-                                                                HeaderText="Montant HT" UniqueName="MontantNetHT"
-                                                                DataFormatString="{0:N2} €"
-                                                                ItemStyle-HorizontalAlign="Left">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="TVA" HeaderText="TVA %"
-                                                                UniqueName="TVA" DataFormatString="{0:N2} %"
-                                                                ItemStyle-HorizontalAlign="Right">
-                                                            </telerik:GridBoundColumn>
-                                                        </Columns>
-                                                    </MasterTableView>
-                                                </telerik:RadGrid>
-                                            </div>
-                                            <div id="divPdfViewer" runat="server"
-                                                style="flex:1; padding-left:10px; border-left:1px solid #ccc;">
-                                                <iframe id="iframePdf" runat="server"
-                                                    src='<%# "DownloadPdf.ashx?id=" & Eval("IdFacture").ToString() %>'
-                                                    width="100%" height="100%" style="border:none;"></iframe>
-                                            </div>
-                                        </div>
-                                    </NestedViewTemplate>
-                                    <PagerStyle Mode="NextPrevAndNumeric" />
-                                </MasterTableView>
-                            </telerik:RadGrid>
+                                            </NestedViewTemplate>
+                                            <PagerStyle Mode="NextPrevAndNumeric" />
+                                        </MasterTableView>
+                                    </telerik:RadGrid>
                                 </telerik:RadPageView>
                                 <telerik:RadPageView ID="rpvHistory" runat="server">
-                                    <telerik:RadGrid ID="rgFacturesDematHistorique" runat="server" AutoGenerateColumns="False" AllowPaging="True"
-                                        PageSize="20" Skin="MetroTouch" CssClass="factures-grid"
+                                    <div class="filtres-historique"
+                                        style="margin-bottom: 15px; padding: 15px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+                                        <div>
+                                            <asp:Label ID="lblFiltreFournisseur" runat="server" Text="Fournisseur:"
+                                                Font-Bold="true" Style="display: block; margin-bottom: 5px;">
+                                            </asp:Label>
+                                            <telerik:RadTextBox ID="txtFiltreFournisseur" runat="server" Width="200px"
+                                                EmptyMessage="Nom du Fournisseur..."></telerik:RadTextBox>
+                                        </div>
+                                        <div>
+                                            <asp:Label ID="lblFiltreNumFacture" runat="server" Text="N° Facture:"
+                                                Font-Bold="true" Style="display: block; margin-bottom: 5px;">
+                                            </asp:Label>
+                                            <telerik:RadTextBox ID="txtFiltreNumFacture" runat="server" Width="150px"
+                                                EmptyMessage="Numéro..."></telerik:RadTextBox>
+                                        </div>
+                                        <div>
+                                            <asp:Label ID="lblFiltreDate" runat="server" Text="Date de facture:"
+                                                Font-Bold="true" Style="display: block; margin-bottom: 5px;">
+                                            </asp:Label>
+                                            <div style="display: flex; gap: 5px; align-items: center;">
+                                                <telerik:RadDatePicker ID="dpFiltreDateDebut" runat="server"
+                                                    Width="120px" EmptyMessage="Début">
+                                                    <DateInput DateFormat="dd/MM/yyyy" DisplayDateFormat="dd/MM/yyyy"
+                                                        runat="server"></DateInput>
+                                                </telerik:RadDatePicker>
+                                                <span>au</span>
+                                                <telerik:RadDatePicker ID="dpFiltreDateFin" runat="server" Width="120px"
+                                                    EmptyMessage="Fin">
+                                                    <DateInput DateFormat="dd/MM/yyyy" DisplayDateFormat="dd/MM/yyyy"
+                                                        runat="server"></DateInput>
+                                                </telerik:RadDatePicker>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; gap: 10px;">
+                                            <telerik:RadButton ID="btnFiltrerHistorique" runat="server" Text="Filtrer"
+                                                OnClick="btnFiltrerHistorique_Click" Skin="MetroTouch"
+                                                Icon-PrimaryIconCssClass="rbSearch"></telerik:RadButton>
+                                            <telerik:RadButton ID="btnReinitialiserFiltres" runat="server"
+                                                Text="Réinitialiser" OnClick="btnReinitialiserFiltres_Click"
+                                                Skin="MetroTouch" ButtonType="LinkButton"></telerik:RadButton>
+                                        </div>
+                                    </div>
+                                    <telerik:RadGrid ID="rgFacturesDematHistorique" runat="server"
+                                        AutoGenerateColumns="False" AllowPaging="True" PageSize="20" Skin="MetroTouch"
+                                        CssClass="factures-grid"
                                         OnNeedDataSource="rgFacturesDematHistorique_NeedDataSource"
                                         OnItemDataBound="rgFacturesDemat_ItemDataBound"
                                         OnItemCommand="rgFacturesDemat_ItemCommand">
-                                <MasterTableView DataKeyNames="IdFacture" CommandItemDisplay="None"
-                                    HierarchyLoadMode="Client" RetainExpandStateOnRebind="true">
-                                    <Columns>
-                                        <telerik:GridTemplateColumn HeaderText="Statut" UniqueName="Statut"
-                                            DataField="Statut" SortExpression="Statut">
-                                            <ItemTemplate>
-                                                <asp:Label ID="lblStatutDemat" runat="server"
-                                                    Text='<%# Eval("Statut") %>'
-                                                    CssClass='<%# "statut-badge statut-" & Eval("Statut").ToString().ToLower() %>'>
-                                                </asp:Label>
-                                            </ItemTemplate>
-                                        </telerik:GridTemplateColumn>
-                                        <telerik:GridBoundColumn DataField="NumFacture" HeaderText="N° Facture"
-                                            UniqueName="NumFacture"></telerik:GridBoundColumn>
-                                        <telerik:GridBoundColumn DataField="DateFacture" HeaderText="Date Facture"
-                                            UniqueName="DateFacture" DataFormatString="{0:dd/MM/yyyy}"
-                                            FilterControlWidth="100px"></telerik:GridBoundColumn>
-                                        <telerik:GridTemplateColumn HeaderText="FOURNISSEUR"
-                                            UniqueName="FournisseurDemat" DataField="RaisonSociale"
-                                            SortExpression="RaisonSociale" HeaderStyle-Width="250px">
-                                            <ItemTemplate>
-                                                <asp:Panel ID="pnlFournisseurDemat" runat="server">
-                                                    <div style="white-space: nowrap;">
-                                                        <asp:TextBox ID="txtSiretDemat" runat="server" Visible="false"
-                                                            MaxLength="14" CssClass="textbox-siret-custom"
-                                                            Style="vertical-align: middle;" placeholder="14 chiffres">
-                                                        </asp:TextBox>
-                                                        <telerik:RadButton ID="btnValiderSiretDemat" runat="server"
-                                                            Visible="false" ButtonType="StandardButton"
-                                                            ToolTip="Valider le SIRET" CommandName="ValidateSiret"
-                                                            CommandArgument='<%# Eval("IdFacture") %>'
-                                                            Style="vertical-align: middle; margin-left: 4px; "
-                                                            CssClass="btn-valider">
-                                                            <Icon PrimaryIconCssClass="rbOk" />
-                                                        </telerik:RadButton>
-                                                    </div>
+                                        <MasterTableView DataKeyNames="IdFacture" CommandItemDisplay="None"
+                                            HierarchyLoadMode="Client" RetainExpandStateOnRebind="true">
+                                            <Columns>
+                                                <telerik:GridTemplateColumn HeaderText="Statut" UniqueName="Statut"
+                                                    DataField="Statut" SortExpression="Statut"
+                                                    HeaderStyle-Width="130px">
+                                                    <ItemTemplate>
+                                                        <asp:Label ID="lblStatutDemat" runat="server"
+                                                            Text='<%# Eval("Statut") %>'
+                                                            CssClass='<%# "statut-badge statut-" & Eval("Statut").ToString().ToLower() %>'>
+                                                        </asp:Label>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
+                                                <telerik:GridBoundColumn DataField="NumFacture" HeaderText="N° Facture"
+                                                    UniqueName="NumFacture" HeaderStyle-Width="70px">
+                                                </telerik:GridBoundColumn>
+                                                <telerik:GridBoundColumn DataField="DateFacture"
+                                                    HeaderText="Date Facture" UniqueName="DateFacture"
+                                                    DataFormatString="{0:dd/MM/yyyy}" FilterControlWidth="80px"
+                                                    HeaderStyle-Width="70px">
+                                                </telerik:GridBoundColumn>
+                                                <telerik:GridTemplateColumn HeaderText="FOURNISSEUR"
+                                                    UniqueName="ColRaisonSocialeDemat" DataField="RaisonSociale"
+                                                    SortExpression="RaisonSociale" HeaderStyle-Width="150px">
+                                                    <ItemTemplate>
+                                                        <asp:Label ID="lblFournisseurDemat" runat="server"
+                                                            Text='<%# Eval("RaisonSociale") %>'
+                                                            CssClass="label-fournisseur"
+                                                            Style="white-space: normal; line-height: 1.1;">
+                                                        </asp:Label>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
 
-                                                    <asp:Label ID="lblFournisseurDemat" runat="server"
-                                                        Text='<%# Eval("RaisonSociale") %>'
-                                                        CssClass="label-fournisseur">
-                                                    </asp:Label>
-                                                    <div style="margin-top: 5px;">
-                                                        <asp:Label ID="lblSiretMsg" runat="server" Visible="false"
-                                                            Font-Size="11px" Font-Bold="true"></asp:Label>
-                                                    </div>
-                                                </asp:Panel>
-                                            </ItemTemplate>
-                                        </telerik:GridTemplateColumn>
+                                                <telerik:GridTemplateColumn HeaderText="SIREN"
+                                                    UniqueName="FournisseurDemat" HeaderStyle-Width="120px">
+                                                    <ItemTemplate>
+                                                        <asp:Panel ID="pnlFournisseurDemat" runat="server">
+                                                            <div style="white-space: nowrap;">
+                                                                <asp:Label ID="lblSirenTextDemat" runat="server" Visible="false" Style="margin-right: 5px; font-weight: bold;"></asp:Label>
+                                                                <asp:TextBox ID="txtSirenDemat" runat="server"
+                                                                    Visible="true" MaxLength="9"
+                                                                    CssClass="textbox-siret-custom"
+                                                                    Style="vertical-align: middle; width: 85px;"
+                                                                    placeholder="SIREN">
+                                                                </asp:TextBox>
+                                                                <telerik:RadButton ID="btnValiderSirenDemat"
+                                                                    runat="server" Visible="true"
+                                                                    ButtonType="StandardButton"
+                                                                    ToolTip="Valider le SIREN"
+                                                                    CommandName="ValidateSiren"
+                                                                    CommandArgument='<%# Eval("IdFacture") %>'
+                                                                    Style="vertical-align: middle; margin-left: 4px; "
+                                                                    CssClass="btn-valider">
+                                                                    <Icon PrimaryIconCssClass="rbOk" />
+                                                                </telerik:RadButton>
+                                                            </div>
+                                                            <div style="margin-top: 5px;">
+                                                                <asp:Label ID="lblSiretMsg" runat="server"
+                                                                    Visible="false" Font-Size="11px" Font-Bold="true">
+                                                                </asp:Label>
+                                                            </div>
+                                                        </asp:Panel>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
 
-                                        <telerik:GridBoundColumn DataField="TotalHT" HeaderText="Total HT"
-                                            UniqueName="TotalHT" DataFormatString="{0:N2} €"
-                                            ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left"
-                                            ItemStyle-CssClass="nowrap"></telerik:GridBoundColumn>
-                                        <telerik:GridBoundColumn DataField="TotalTTC" HeaderText="Total TTC"
-                                            UniqueName="TotalTTC" DataFormatString="{0:N2} €"
-                                            ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left"
-                                            ItemStyle-CssClass="nowrap"></telerik:GridBoundColumn>
-                                        <telerik:GridBoundColumn DataField="NumOR" HeaderText="N° OR"
-                                            UniqueName="NumOR"></telerik:GridBoundColumn>
-                                        <telerik:GridTemplateColumn UniqueName="StatutCycleDeVie"
-                                            SortExpression="StatutCycleDeVie" HeaderStyle-Width="180px">
-                                            <HeaderTemplate>
-                                                Cycle de Vie (Maileva)
-                                                <span class="tooltip-cycle">
-                                                    <i class="info-icon">i</i>
-                                                    <span class="tooltiptext">
-                                                        <b>Prise en charge :</b> En cours de traitement<br />
-                                                        <b>Suspendue :</b> Erreur côté fournisseur. En attente de sa correction<br />
-                                                        <b>Refusée :</b> Facture définitivement rejetée (ex: doublon)<br />
-                                                        <b>Approuvée partiel. :</b> Intégrée avec des réserves<br />
-                                                        <b>Paiement Transmis :</b> Intégrée avec succès, paiement acté<br />
-                                                        <b>En litige :</b> Désaccord, en attente d'une action ou d'un avoir
-                                                    </span>
-                                                </span>
-                                            </HeaderTemplate>
-                                            <ItemTemplate>
-                                                <telerik:RadDropDownList ID="ddlStatutCycleDeVie" runat="server"
-                                                    AutoPostBack="true"
-                                                    OnSelectedIndexChanged="ddlStatutCycleDeVie_SelectedIndexChanged"
-                                                    SelectedValue='<%# If(IsDBNull(Eval("StatutCycleDeVie")) OrElse String.IsNullOrEmpty(Eval("StatutCycleDeVie").ToString()), "IN_PROCESS", Eval("StatutCycleDeVie").ToString().Trim().ToUpper().Replace(" ", "_").Replace("SUSPENDED", "ON_HOLD")) %>'>
-                                                    <Items>
-                                                        <telerik:DropDownListItem Text="Prise en charge"
-                                                            Value="IN_PROCESS" />
-                                                        <telerik:DropDownListItem Text="Suspendue" Value="ON_HOLD" />
-                                                        <telerik:DropDownListItem Text="Refusée" Value="REFUSED" />
-                                                        <telerik:DropDownListItem Text="Approuvée Partiellement"
-                                                            Value="CONDITIONNALY_ACCEPTED" />
-                                                        <telerik:DropDownListItem Text="Paiement Transmis"
-                                                            Value="PAID" />
-                                                        <telerik:DropDownListItem Text="En litige"
-                                                            Value="UNDER_QUERY" />
-                                                    </Items>
-                                                </telerik:RadDropDownList>
-                                                <asp:HiddenField ID="hdnIdFactureCycle" runat="server"
-                                                    Value='<%# Eval("IdFacture") %>' />
-                                            </ItemTemplate>
-                                        </telerik:GridTemplateColumn>
-                                        <telerik:GridTemplateColumn HeaderText="PDF" UniqueName="VisualiserPDF"
-                                            ItemStyle-HorizontalAlign="Center" HeaderStyle-HorizontalAlign="Center">
-                                            <ItemTemplate>
-                                                <a href='DownloadPdf.ashx?id=<%# Eval("IdFacture") %>' target="_blank"
-                                                    style="text-decoration:none; font-size:20px;"
-                                                    title="Visualiser la facture (PDF)">
-                                                    &#128196;
-                                                </a>
-                                            </ItemTemplate>
-                                        </telerik:GridTemplateColumn>
-                                        <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message">
-                                            <ItemTemplate>
-                                                <asp:Label ID="lblMessageDemat" runat="server"
-                                                    Text='<%# Eval("Message") %>' ToolTip='<%# Eval("Message") %>'>
-                                                </asp:Label>
-                                            </ItemTemplate>
-                                        </telerik:GridTemplateColumn>
-                                    </Columns>
-                                    <NestedViewTemplate>
-                                        <div
-                                            style="display:flex; width:100%; height:600px; padding: 10px; background-color:#fafafa; border-bottom:1px solid #ddd;">
-                                            <div style="flex:1; overflow-y:auto; padding-right:10px;">
-                                                <h3 style="margin-top:0;">Lignes de prestation</h3>
-                                                <telerik:RadGrid ID="rgLignesInternes" runat="server" Width="100%"
-                                                    AutoGenerateColumns="False" Skin="MetroTouch"
-                                                    OnNeedDataSource="rgLignesInternes_NeedDataSource"
-                                                    OnItemDataBound="rgLignesInternes_ItemDataBound"
-                                                    OnItemCommand="rgLignesInternes_ItemCommand">
-                                                    <MasterTableView DataKeyNames="IdFacture">
-                                                        <Columns>
-                                                            <telerik:GridBoundColumn DataField="NumLig"
-                                                                HeaderText="N° Ligne" UniqueName="NumLig">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="CodePrestaFournisseur"
-                                                                HeaderText="Réf. Fournisseur"
-                                                                UniqueName="CodePrestaFournisseur">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridTemplateColumn HeaderText="Code LocPro"
-                                                                UniqueName="CodePrestaLP">
-                                                                <ItemTemplate>
-                                                                    <telerik:RadLabel ID="lblCodePrestaLPDemat"
-                                                                        runat="server"
-                                                                        Text='<%# Eval("CodePrestaLP") %>'>
-                                                                    </telerik:RadLabel>
-                                                                    <telerik:RadButton ID="btnAjouterRegleDemat"
-                                                                        runat="server" Visible="false"
-                                                                        CommandName="AjouterRegleLigne"
-                                                                        CommandArgument='<%# Eval("NumOR") & "|" & Eval("NumFacture") & "|" & Eval("CodePrestaFournisseur") & "|" & Eval("Descr") & "|" & Eval("CodeFournisseur") %>'
-                                                                        ToolTip="Ajouter une correspondance LocPro"
-                                                                        ButtonType="LinkButton" Text="&#10133;"
-                                                                        CssClass="btn-ajouter-regle-mini">
-                                                                    </telerik:RadButton>
-                                                                </ItemTemplate>
-                                                            </telerik:GridTemplateColumn>
-                                                            <telerik:GridBoundColumn DataField="Descr"
-                                                                HeaderText="Désignation" UniqueName="Descr">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="Qte" HeaderText="Qté"
-                                                                UniqueName="Qte" DataFormatString="{0:N0}"
-                                                                ItemStyle-HorizontalAlign="Center">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="PrixUnitHT"
-                                                                HeaderText="Prix Unit. HT" UniqueName="PrixUnitHT"
-                                                                DataFormatString="{0:N2} €"
-                                                                ItemStyle-HorizontalAlign="Left">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="TauxRemise"
-                                                                HeaderText="Remise %" UniqueName="TauxRemise"
-                                                                DataFormatString="{0:N2} %"
-                                                                ItemStyle-HorizontalAlign="Left">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="MontantNetHT"
-                                                                HeaderText="Montant HT" UniqueName="MontantNetHT"
-                                                                DataFormatString="{0:N2} €"
-                                                                ItemStyle-HorizontalAlign="Left">
-                                                            </telerik:GridBoundColumn>
-                                                            <telerik:GridBoundColumn DataField="TVA" HeaderText="TVA %"
-                                                                UniqueName="TVA" DataFormatString="{0:N2} %"
-                                                                ItemStyle-HorizontalAlign="Right">
-                                                            </telerik:GridBoundColumn>
-                                                        </Columns>
-                                                    </MasterTableView>
-                                                </telerik:RadGrid>
-                                            </div>
-                                            <div id="divPdfViewer" runat="server"
-                                                style="flex:1; padding-left:10px; border-left:1px solid #ccc;">
-                                                <iframe id="iframePdf" runat="server"
-                                                    src='<%# "DownloadPdf.ashx?id=" & Eval("IdFacture").ToString() %>'
-                                                    width="100%" height="100%" style="border:none;"></iframe>
-                                            </div>
-                                        </div>
-                                    </NestedViewTemplate>
-                                    <PagerStyle Mode="NextPrevAndNumeric" />
-                                </MasterTableView>
-                            </telerik:RadGrid>
+                                                <telerik:GridBoundColumn DataField="TotalHT" HeaderText="Total HT (€)"
+                                                    UniqueName="TotalHT" DataFormatString="{0:N2}"
+                                                    ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left"
+                                                    ItemStyle-CssClass="nowrap" HeaderStyle-Width="70px">
+                                                </telerik:GridBoundColumn>
+                                                <telerik:GridBoundColumn DataField="TotalTTC" HeaderText="Total TTC (€)"
+                                                    UniqueName="TotalTTC" DataFormatString="{0:N2}"
+                                                    ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left"
+                                                    ItemStyle-CssClass="nowrap" HeaderStyle-Width="70px">
+                                                </telerik:GridBoundColumn>
+                                                <telerik:GridBoundColumn DataField="NumOR" HeaderText="N° Commande"
+                                                    UniqueName="NumOR" HeaderStyle-Width="70px">
+                                                </telerik:GridBoundColumn>
+                                                <telerik:GridTemplateColumn UniqueName="StatutCycleDeVie"
+                                                    SortExpression="StatutCycleDeVie" HeaderStyle-Width="130px">
+                                                    <HeaderTemplate>
+                                                        Cycle de Vie (Maileva)
+                                                        <span class="tooltip-cycle">
+                                                            <i class="info-icon">i</i>
+                                                            <span class="tooltiptext">
+                                                                <b>Prise en charge :</b> En cours de traitement<br />
+                                                                <b>Suspendue :</b> Erreur côté fournisseur. En attente
+                                                                de sa correction<br />
+                                                                <b>Refusée :</b> Facture définitivement rejetée (ex:
+                                                                doublon)<br />
+                                                                <b>Approuvée partiel. :</b> Intégrée avec des
+                                                                réserves<br />
+                                                                <b>Paiement Transmis :</b> Intégrée avec succès,
+                                                                paiement acté<br />
+                                                                <b>En litige :</b> Désaccord, en attente d'une action ou
+                                                                d'un avoir
+                                                            </span>
+                                                        </span>
+                                                    </HeaderTemplate>
+                                                    <ItemTemplate>
+                                                        <telerik:RadDropDownList ID="ddlStatutCycleDeVie" runat="server"
+                                                            AutoPostBack="true"
+                                                            OnSelectedIndexChanged="ddlStatutCycleDeVie_SelectedIndexChanged"
+                                                            SelectedValue='<%# If(IsDBNull(Eval("StatutCycleDeVie")) OrElse String.IsNullOrEmpty(Eval("StatutCycleDeVie").ToString()), "IN_PROCESS", Eval("StatutCycleDeVie").ToString().Trim().ToUpper().Replace(" ", "_").Replace("SUSPENDED", "ON_HOLD")) %>'>
+                                                            <Items>
+                                                                <telerik:DropDownListItem Text="Prise en charge"
+                                                                    Value="IN_PROCESS" />
+                                                                <telerik:DropDownListItem Text="Suspendue"
+                                                                    Value="ON_HOLD" />
+                                                                <telerik:DropDownListItem Text="Refusée"
+                                                                    Value="REFUSED" />
+                                                                <telerik:DropDownListItem Text="Approuvée Partiellement"
+                                                                    Value="CONDITIONNALY_ACCEPTED" />
+                                                                <telerik:DropDownListItem Text="Paiement Transmis"
+                                                                    Value="PAID" />
+                                                                <telerik:DropDownListItem Text="En litige"
+                                                                    Value="UNDER_QUERY" />
+                                                            </Items>
+                                                        </telerik:RadDropDownList>
+                                                        <asp:HiddenField ID="hdnIdFactureCycle" runat="server"
+                                                            Value='<%# Eval("IdFacture") %>' />
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
+                                                <telerik:GridTemplateColumn HeaderText="PDF" UniqueName="VisualiserPDF"
+                                                    ItemStyle-HorizontalAlign="Center"
+                                                    HeaderStyle-HorizontalAlign="Center" HeaderStyle-Width="50px">
+                                                    <ItemTemplate>
+                                                        <a href='DownloadPdf.ashx?id=<%# Eval("IdFacture") %>'
+                                                            target="_blank"
+                                                            style="text-decoration:none; font-size:20px;"
+                                                            title="Visualiser la facture (PDF)">
+                                                            &#128196;
+                                                        </a>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
+                                                <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message">
+                                                    <ItemTemplate>
+                                                        <asp:Label ID="lblMessageDemat" runat="server"
+                                                            Text='<%# Eval("Message") %>'
+                                                            ToolTip='<%# Eval("Message") %>' Font-Size="15px">
+                                                        </asp:Label>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
+                                            </Columns>
+                                            <NestedViewTemplate>
+                                                <div
+                                                    style="display:flex; width:100%; height:600px; padding: 10px; background-color:#fafafa; border-bottom:1px solid #ddd;">
+                                                    <div style="flex:1; overflow-y:auto; padding-right:10px;">
+                                                        <h3 style="margin-top:0;">Lignes de prestation</h3>
+                                                        <telerik:RadGrid ID="rgLignesInternes" runat="server"
+                                                            Width="100%" AutoGenerateColumns="False" Skin="MetroTouch"
+                                                            OnNeedDataSource="rgLignesInternes_NeedDataSource"
+                                                            OnItemDataBound="rgLignesInternes_ItemDataBound"
+                                                            OnItemCommand="rgLignesInternes_ItemCommand">
+                                                            <MasterTableView DataKeyNames="IdFacture">
+                                                                <Columns>
+                                                                    <telerik:GridBoundColumn DataField="NumLig"
+                                                                        HeaderText="N° Ligne" UniqueName="NumLig">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridTemplateColumn
+                                                                        HeaderText="Réf. Fournisseur"
+                                                                        UniqueName="CodePrestaFournisseur"
+                                                                        DataField="CodePrestaFournisseur">
+                                                                        <ItemTemplate>
+                                                                            <div style="white-space: nowrap;">
+                                                                                <asp:TextBox ID="txtRefFournisseur"
+                                                                                    runat="server" Visible="false"
+                                                                                    MaxLength="50"
+                                                                                    CssClass="textbox-siret-custom"
+                                                                                    Style="vertical-align: middle; width: 120px; min-width: 120px;"
+                                                                                    placeholder="Référence">
+                                                                                </asp:TextBox>
+                                                                                <telerik:RadButton
+                                                                                    ID="btnValiderRefFournisseur"
+                                                                                    runat="server" Visible="false"
+                                                                                    ButtonType="StandardButton"
+                                                                                    ToolTip="Valider la référence"
+                                                                                    CommandName="ValidateRefFournisseur"
+                                                                                    CommandArgument='<%# Eval("IdFacture").ToString() & "|" & Eval("NumLig").ToString() %>'
+                                                                                    Style="vertical-align: middle; margin-left: 4px; "
+                                                                                    CssClass="btn-valider">
+                                                                                    <Icon PrimaryIconCssClass="rbOk" />
+                                                                                </telerik:RadButton>
+                                                                            </div>
+                                                                            <asp:Label ID="lblRefFournisseur"
+                                                                                runat="server"
+                                                                                Text='<%# Eval("CodePrestaFournisseur") %>'>
+                                                                            </asp:Label>
+                                                                        </ItemTemplate>
+                                                                    </telerik:GridTemplateColumn>
+                                                                    <telerik:GridTemplateColumn HeaderText="Code LocPro"
+                                                                        UniqueName="CodePrestaLP">
+                                                                        <ItemTemplate>
+                                                                            <telerik:RadLabel ID="lblCodePrestaLPDemat"
+                                                                                runat="server"
+                                                                                Text='<%# Eval("CodePrestaLP") %>'>
+                                                                            </telerik:RadLabel>
+                                                                            <telerik:RadButton ID="btnAjouterRegleDemat"
+                                                                                runat="server" Visible="false"
+                                                                                CommandName="AjouterRegleLigne"
+                                                                                CommandArgument='<%# Eval("NumOR") & "|" & Eval("NumFacture") & "|" & Eval("CodePrestaFournisseur") & "|" & Eval("Descr") & "|" & Eval("CodeFournisseur") %>'
+                                                                                ToolTip="Ajouter une correspondance LocPro"
+                                                                                ButtonType="LinkButton" Text="&#10133;"
+                                                                                CssClass="btn-ajouter-regle-mini">
+                                                                            </telerik:RadButton>
+                                                                        </ItemTemplate>
+                                                                    </telerik:GridTemplateColumn>
+                                                                    <telerik:GridBoundColumn DataField="Descr"
+                                                                        HeaderText="Désignation" UniqueName="Descr">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridBoundColumn DataField="Qte"
+                                                                        HeaderText="Qté" UniqueName="Qte"
+                                                                        DataFormatString="{0:N0}"
+                                                                        ItemStyle-HorizontalAlign="Center">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridBoundColumn DataField="PrixUnitHT"
+                                                                        HeaderText="Prix Unit. HT (€)"
+                                                                        UniqueName="PrixUnitHT"
+                                                                        DataFormatString="{0:N2}"
+                                                                        ItemStyle-HorizontalAlign="Left">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridBoundColumn DataField="TauxRemise"
+                                                                        HeaderText="Remise (%)" UniqueName="TauxRemise"
+                                                                        DataFormatString="{0:N2}"
+                                                                        ItemStyle-HorizontalAlign="Left">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridBoundColumn DataField="MontantNetHT"
+                                                                        HeaderText="Montant HT (€)"
+                                                                        UniqueName="MontantNetHT"
+                                                                        DataFormatString="{0:N2}"
+                                                                        ItemStyle-HorizontalAlign="Left">
+                                                                    </telerik:GridBoundColumn>
+                                                                    <telerik:GridBoundColumn DataField="TVA"
+                                                                        HeaderText="TVA (%)" UniqueName="TVA"
+                                                                        DataFormatString="{0:N2}"
+                                                                        ItemStyle-HorizontalAlign="Right">
+                                                                    </telerik:GridBoundColumn>
+                                                                </Columns>
+                                                            </MasterTableView>
+                                                        </telerik:RadGrid>
+                                                    </div>
+                                                    <div id="divPdfViewer" runat="server"
+                                                        style="flex:1; padding-left:10px; border-left:1px solid #ccc;">
+                                                        <iframe id="iframePdf" runat="server"
+                                                            src='<%# "DownloadPdf.ashx?id=" & Eval("IdFacture").ToString() %>'
+                                                            width="100%" height="100%" style="border:none;"></iframe>
+                                                    </div>
+                                                </div>
+                                            </NestedViewTemplate>
+                                            <PagerStyle Mode="NextPrevAndNumeric" />
+                                        </MasterTableView>
+                                    </telerik:RadGrid>
                                 </telerik:RadPageView>
                             </telerik:RadMultiPage>
                             <div style="margin-top: 15px; margin-bottom: 20px;">
@@ -639,7 +811,7 @@
                                                 UniqueName="TotalTTC" DataFormatString="{0:N2} €"
                                                 ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left"
                                                 ItemStyle-CssClass="nowrap"></telerik:GridBoundColumn>
-                                            <telerik:GridBoundColumn DataField="NumOR" HeaderText="N° OR"
+                                            <telerik:GridBoundColumn DataField="NumOR" HeaderText="N° Commande"
                                                 UniqueName="NumOR"></telerik:GridBoundColumn>
                                             <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message">
                                                 <ItemTemplate>
@@ -664,7 +836,7 @@
                                                         UniqueName="NumLig">
                                                     </telerik:GridBoundColumn>
                                                     <telerik:GridBoundColumn DataField="CodePrestaFournisseur"
-                                                        HeaderText="Réf. Fournisseur"
+                                                        HeaderText="Code prestation fournisseur"
                                                         UniqueName="CodePrestaFournisseur"></telerik:GridBoundColumn>
                                                     <telerik:GridBoundColumn DataField="Descr" HeaderText="Désignation"
                                                         UniqueName="Descr">
@@ -776,7 +948,7 @@
 
                                 <!-- RadWindow pour le formulaire de correspondance -->
                                 <telerik:RadWindow ID="rwFormulaireCorrespondance" runat="server"
-                                    Title="Ajouter une correspondance prestation" Width="900px" Height="800px"
+                                    Title="Ajouter une correspondance prestation" Width="1050px" Height="800px"
                                     Modal="true" Behaviors="Close,Move" VisibleStatusbar="false" Skin="MetroTouch"
                                     OnClientClose="refreshRadGrid">
                                 </telerik:RadWindow>

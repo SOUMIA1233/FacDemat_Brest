@@ -120,7 +120,7 @@ Namespace Services
             ' Utiliser l'URL de base pour les factures entrantes (par défaut)
             Dim baseUrl As String = ConfigurationManager.AppSettings("Maileva_IncomingInvoicesBaseUrl")
             If String.IsNullOrEmpty(baseUrl) Then
-                baseUrl = "https://api.sandbox.maileva.net/incoming_invoices/v1"
+                baseUrl = "https://api.maileva.com/incoming_invoices/v1"
             End If
 
             _httpClient.DefaultRequestHeaders.Authorization = New AuthenticationHeaderValue("Bearer", token)
@@ -131,23 +131,26 @@ Namespace Services
             Dim response = Await _httpClient.GetAsync(downloadUrl)
 
             If response.IsSuccessStatusCode Then
-                Dim zipBytes As Byte() = Await response.Content.ReadAsByteArrayAsync()
+                ' Dim zipBytes As Byte() = Await response.Content.ReadAsByteArrayAsync()
 
-                ' Extraction du PDF depuis le ZIP en mémoire
-                Using ms As New System.IO.MemoryStream(zipBytes)
-                    Using archive As New System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read)
-                        For Each entry In archive.Entries
-                            If entry.FullName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) Then
-                                Using entryStream = entry.Open()
-                                    Using pdfMs As New System.IO.MemoryStream()
-                                        entryStream.CopyTo(pdfMs)
-                                        Return pdfMs.ToArray()
-                                    End Using
-                                End Using
-                            End If
-                        Next
-                    End Using
-                End Using
+                ' ' Extraction du PDF depuis le ZIP en mémoire
+                ' Using ms As New System.IO.MemoryStream(zipBytes)
+                    ' Using archive As New System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read)
+                        ' For Each entry In archive.Entries
+                            ' If entry.FullName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) Then
+                                ' Using entryStream = entry.Open()
+                                    ' Using pdfMs As New System.IO.MemoryStream()
+                                        ' entryStream.CopyTo(pdfMs)
+                                        ' Return pdfMs.ToArray()
+                                    ' End Using
+                                ' End Using
+                            ' End If
+                        ' Next
+                    ' End Using
+                ' End Using
+				
+				Dim pdfBytes As Byte() = Await response.Content.ReadAsByteArrayAsync()
+				Return pdfBytes
 
                 Throw New Exception("Aucun fichier PDF trouvé dans l'archive téléchargée.")
             Else

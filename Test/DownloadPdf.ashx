@@ -1,4 +1,4 @@
-﻿<%@ WebHandler Language="VB" Class="DownloadPdf" %>
+<%@ WebHandler Language="VB" Class="DownloadPdf" %>
 
 Imports System
 Imports System.Web
@@ -42,13 +42,6 @@ Public Class DownloadPdf
             End If
         End If
 
-        ' Tentative 3 : Fallback d'exemple (pour dÃ©veloppement)
-        If pdfBytes Is Nothing OrElse pdfBytes.Length = 0 Then
-            Dim localPdfPath As String = context.Server.MapPath("~/exemple_facturx.pdf")
-            If System.IO.File.Exists(localPdfPath) Then
-                pdfBytes = System.IO.File.ReadAllBytes(localPdfPath)
-            End If
-        End If
 
         If pdfBytes IsNot Nothing AndAlso pdfBytes.Length > 0 Then
             Try

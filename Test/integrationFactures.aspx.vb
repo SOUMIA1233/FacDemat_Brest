@@ -46,7 +46,7 @@ Partial Class integrationFactures
                 Directory.CreateDirectory(tempFolder)
             End If
 
-            Dim sourceImport As String = "TestLocal" ' À remplacer par l'utilisateur connecté
+            Dim sourceImport As String = User.Identity.Name ' À remplacer par l'utilisateur connecté
 
             For Each uploadedFile As UploadedFile In rtb_repertoire.UploadedFiles
                 Dim tempFilePath As String = Path.Combine(tempFolder, uploadedFile.GetName())
@@ -364,6 +364,7 @@ Partial Class integrationFactures
             txtSiret.Visible = True
             btnValiderSiret.Visible = True
             lblFournisseur.Visible = False
+            lblFournisseur.Text = ""
         Else
             txtSiret.Visible = False
             btnValiderSiret.Visible = False
@@ -400,9 +401,6 @@ Partial Class integrationFactures
             lblImmat.Visible = True
         End If
     End Sub
-
-
-    'rajouter l'item command pour cliquer sur le bouton
 
 
     ''' <summary>
@@ -448,7 +446,29 @@ Partial Class integrationFactures
             If dt IsNot Nothing Then
                 Dim dv As System.Data.DataView = dt.DefaultView
                 ' Inclure uniquement les factures terminées (PAID et REFUSED)
-                dv.RowFilter = "StatutCycleDeVie IN ('PAID', 'REFUSED', 'paid', 'refused', 'Paiement Transmis', 'Refusée', 'PAIEMENT TRANSMIS', 'REFUSÉE')"
+                Dim filterExpression As String = "StatutCycleDeVie IN ('PAID', 'REFUSED', 'paid', 'refused', 'Paiement Transmis', 'Refusée', 'PAIEMENT TRANSMIS', 'REFUSÉE')"
+
+                ' Appliquer les filtres personnalisés
+                If txtFiltreFournisseur IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(txtFiltreFournisseur.Text) Then
+                    filterExpression &= " AND RaisonSociale LIKE '%" & txtFiltreFournisseur.Text.Trim().Replace("'", "''") & "%'"
+                End If
+
+                If txtFiltreNumFacture IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(txtFiltreNumFacture.Text) Then
+                    filterExpression &= " AND NumFacture LIKE '%" & txtFiltreNumFacture.Text.Trim().Replace("'", "''") & "%'"
+                End If
+
+                If dpFiltreDateDebut IsNot Nothing AndAlso dpFiltreDateDebut.SelectedDate.HasValue Then
+                    Dim dateDebutStr As String = dpFiltreDateDebut.SelectedDate.Value.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture)
+                    filterExpression &= " AND DateFacture >= #" & dateDebutStr & "#"
+                End If
+
+                If dpFiltreDateFin IsNot Nothing AndAlso dpFiltreDateFin.SelectedDate.HasValue Then
+                    ' On ajoute 1 jour pour inclure la fin de la journée sélectionnée
+                    Dim dateFinStr As String = dpFiltreDateFin.SelectedDate.Value.AddDays(1).ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture)
+                    filterExpression &= " AND DateFacture < #" & dateFinStr & "#"
+                End If
+
+                dv.RowFilter = filterExpression
                 rgFacturesDematHistorique.DataSource = dv
             Else
                 rgFacturesDematHistorique.DataSource = dt
@@ -456,6 +476,18 @@ Partial Class integrationFactures
         Catch ex As Exception
             GestionnaireLog.Error("Erreur lors du chargement des factures dématérialisées (Historique) : " & ex.Message)
         End Try
+    End Sub
+
+    Protected Sub btnFiltrerHistorique_Click(sender As Object, e As EventArgs)
+        rgFacturesDematHistorique.Rebind()
+    End Sub
+
+    Protected Sub btnReinitialiserFiltres_Click(sender As Object, e As EventArgs)
+        If txtFiltreFournisseur IsNot Nothing Then txtFiltreFournisseur.Text = ""
+        If txtFiltreNumFacture IsNot Nothing Then txtFiltreNumFacture.Text = ""
+        If dpFiltreDateDebut IsNot Nothing Then dpFiltreDateDebut.Clear()
+        If dpFiltreDateFin IsNot Nothing Then dpFiltreDateFin.Clear()
+        rgFacturesDematHistorique.Rebind()
     End Sub
 
     ''' Événement déclenché lors du chargement des détails (lignes) des factures dématérialisées dans la vue partagée
@@ -564,6 +596,23 @@ Partial Class integrationFactures
             Dim lblCodePrestaLP As RadLabel = CType(dataItem.FindControl("lblCodePrestaLPDemat"), RadLabel)
             Dim btnAjouterRegle As RadButton = CType(dataItem.FindControl("btnAjouterRegleDemat"), RadButton)
 
+            ' --- Gestion Réf. Fournisseur ---
+            Dim txtRefFournisseur As TextBox = CType(dataItem.FindControl("txtRefFournisseur"), TextBox)
+            Dim btnValiderRefFournisseur As RadButton = CType(dataItem.FindControl("btnValiderRefFournisseur"), RadButton)
+            Dim lblRefFournisseur As Label = CType(dataItem.FindControl("lblRefFournisseur"), Label)
+            
+            Dim refFournisseur As String = ""
+            If lblRefFournisseur IsNot Nothing Then
+                refFournisseur = lblRefFournisseur.Text.Trim()
+            End If
+
+            If String.IsNullOrEmpty(refFournisseur) AndAlso txtRefFournisseur IsNot Nothing AndAlso btnValiderRefFournisseur IsNot Nothing Then
+                txtRefFournisseur.Visible = True
+                btnValiderRefFournisseur.Visible = True
+                If lblRefFournisseur IsNot Nothing Then lblRefFournisseur.Visible = False
+            End If
+            ' -------------------------------
+
             If lblCodePrestaLP IsNot Nothing AndAlso btnAjouterRegle IsNot Nothing Then
                 Dim codePrestaLP As String = lblCodePrestaLP.Text.Trim()
                 codePrestaLP = codePrestaLP.Replace("&nbsp;", "").Trim()
@@ -626,6 +675,30 @@ Partial Class integrationFactures
 
     Protected Sub rgLignesInternes_ItemCommand(sender As Object, e As GridCommandEventArgs)
         Select Case e.CommandName
+            Case "ValidateRefFournisseur"
+                Dim argsRef As String() = e.CommandArgument.ToString().Split("|"c)
+                If argsRef.Length >= 2 Then
+                    Dim idFacture As String = argsRef(0)
+                    Dim numLig As String = argsRef(1)
+
+                    Dim dataItem As GridDataItem = CType(e.Item, GridDataItem)
+                    Dim txtRefFournisseur As TextBox = CType(dataItem.FindControl("txtRefFournisseur"), TextBox)
+
+                    If txtRefFournisseur IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(txtRefFournisseur.Text) Then
+                        Dim nouvelleRef As String = txtRefFournisseur.Text.Trim()
+
+                        GestionnaireBddFacture.UpdateRefFournisseurLigne(idFacture, numLig, nouvelleRef)
+                        
+                        Dim lblResultat As Label = CType(Me.FindControl("lblResultatReintegrationDemat"), Label)
+                        If lblResultat IsNot Nothing Then
+                            AfficherResultatAction("Référence mise à jour avec succès.", True, lblResultat)
+                        End If
+
+                        ChargerHistorique()
+                        ScriptManager.RegisterStartupScript(Me, Me.GetType(), "RefreshGrid", "setTimeout(function() { refreshRadGrid(); }, 500);", True)
+                    End If
+                End If
+                
             Case "AjouterRegleLigne"
                 Dim args As String() = e.CommandArgument.ToString().Split("|"c)
 
@@ -682,50 +755,47 @@ Partial Class integrationFactures
     End Sub
 
     ' Pour vérifier la validité du siret saisie
-    Protected Sub rgFacturesDemat_ItemCommand(sender As Object, e As GridCommandEventArgs) Handles rgFacturesDemat.ItemCommand
+    Protected Sub rgFacturesDemat_ItemCommand(sender As Object, e As GridCommandEventArgs) Handles rgFacturesDemat.ItemCommand, rgFacturesDematHistorique.ItemCommand
         Select Case e.CommandName
 
-            Case "ValidateSiret"
+            Case "ValidateSiren"
                 Dim idFacture As String = e.CommandArgument.ToString()
 
                 Dim dataItem As GridDataItem = CType(e.Item, GridDataItem)
-                Dim txtSiret As TextBox = CType(dataItem.FindControl("txtSiretDemat"), TextBox)
+                Dim txtSiren As TextBox = CType(dataItem.FindControl("txtSirenDemat"), TextBox)
 
-                If txtSiret IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(txtSiret.Text) Then
-                    Dim nouveauSiret As String = txtSiret.Text.Trim()
+                If txtSiren IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(txtSiren.Text) Then
+                    Dim nouveauSiren As String = txtSiren.Text.Trim()
 
                     ' Mettre à jour en base
-                    GestionnaireBddFacture.UpdateSiretDemat(idFacture, nouveauSiret)
+                    GestionnaireBddFacture.UpdateSirenDemat(idFacture, nouveauSiren)
 
                     ' Retraiter
                     Dim errorMessage As String = ""
-                    Dim succes As Boolean = ServiceReintegration.RetraiterFactureSiretDemat(idFacture, nouveauSiret, errorMessage)
+                    Dim succes As Boolean = ServiceReintegration.RetraiterFactureSiretDemat(idFacture, nouveauSiren, errorMessage)
 
                     If succes Then
-                        ' AfficherResultatAction("SIRET validé avec succès.", True, lblResultatReintegrationDemat)
-                        
                         Dim lblSiretMsg As Label = CType(dataItem.FindControl("lblSiretMsg"), Label)
                         If lblSiretMsg IsNot Nothing Then
                             lblSiretMsg.Text = "Validé"
                             lblSiretMsg.ForeColor = System.Drawing.Color.Green
                             lblSiretMsg.Visible = True
                         End If
-                        txtSiret.Style("border") = ""
+                        txtSiren.Style("border") = ""
 
                         ' Recharger
-                        rgFacturesDemat.Rebind()
+                        If e.Item.OwnerTableView.Name = "MasterTableView" Then
+                            CType(sender, RadGrid).Rebind()
+                        End If
                         ScriptManager.RegisterStartupScript(Me, Me.GetType(), "RefreshGridDemat", "setTimeout(function() { refreshRadGrid(); }, 500);", True)
                     Else
-                        ' AfficherResultatAction(errorMessage, False, lblResultatReintegrationDemat)
-                        
                         Dim lblSiretMsg As Label = CType(dataItem.FindControl("lblSiretMsg"), Label)
                         If lblSiretMsg IsNot Nothing Then
                             lblSiretMsg.Text = "Erreur: " & errorMessage
                             lblSiretMsg.ForeColor = System.Drawing.Color.Red
                             lblSiretMsg.Visible = True
                         End If
-                        txtSiret.Style("border") = "2px solid red"
-                        ' On ne fait pas de Rebind ici pour conserver l'affichage de l'erreur dans la ligne
+                        txtSiren.Style("border") = "2px solid red"
                     End If
                 End If
 
@@ -733,32 +803,113 @@ Partial Class integrationFactures
     End Sub
 
     ''' <summary>
-    ''' Affiche l'édition SIRET ou le nom du fournisseur selon le statut pour Demat
+    ''' Affiche l'édition SIREN et/ou le nom du fournisseur selon la résolution dans LocPro pour Demat
     ''' </summary>
     Private Sub GererEditionFournisseurDemat(item As GridDataItem, statut As String)
-        Dim pnlFournisseur As Panel = CType(item.FindControl("pnlFournisseurDemat"), Panel)
-        If pnlFournisseur Is Nothing Then Return
+        Try
+            Dim pnlFournisseur As Panel = CType(item.FindControl("pnlFournisseur"), Panel)
+            If pnlFournisseur Is Nothing Then Return
 
-        Dim txtSiret As TextBox = CType(item.FindControl("txtSiretDemat"), TextBox)
-        Dim btnValiderSiret As RadButton = CType(item.FindControl("btnValiderSiretDemat"), RadButton)
-        Dim lblFournisseur As Label = CType(item.FindControl("lblFournisseurDemat"), Label)
+            Dim txtSiren As TextBox = CType(item.FindControl("txtSiret"), TextBox)
+            Dim btnValiderSiren As RadButton = CType(item.FindControl("btnValiderSiret"), RadButton)
+            
+            Dim lblFournisseur As Label = Nothing
+            Dim cellFournisseur As TableCell = item("ColRaisonSociale")
+            If cellFournisseur IsNot Nothing Then
+                lblFournisseur = CType(cellFournisseur.FindControl("lblFournisseur"), Label)
+            End If
 
-        If txtSiret Is Nothing OrElse btnValiderSiret Is Nothing OrElse lblFournisseur Is Nothing Then
-            Return
-        End If
+            If txtSiren Is Nothing OrElse btnValiderSiren Is Nothing Then
+                Return
+            End If
 
-        ' Statuts qui nécessitent l'édition du SIRET
-        Dim statutsEditables As String() = {"SIRET_NON_LU", "FOURNISSEUR_INCONNU", "FOURNISSEUR_INTROUVABLE", "SUPPLIER_NOT_FOUND", "FOURNISSEUR_INEXISTANT"}
+            ' Par défaut on affiche toujours l'input et le bouton
+            txtSiren.Visible = True
+            btnValiderSiren.Visible = True
 
-        If statutsEditables.Contains(statut.ToUpper()) Then
-            txtSiret.Visible = True
-            btnValiderSiret.Visible = True
-            lblFournisseur.Visible = False
-        Else
-            txtSiret.Visible = False
-            btnValiderSiret.Visible = False
-            lblFournisseur.Visible = True
-        End If
+            Dim sirenBase As String = ""
+            Dim siretBase As String = ""
+            
+            If item.DataItem IsNot Nothing Then
+                Dim drv As System.Data.DataRowView = TryCast(item.DataItem, System.Data.DataRowView)
+                If drv IsNot Nothing Then
+                    If drv.Row.Table.Columns.Contains("Siren") AndAlso Not IsDBNull(drv("Siren")) Then
+                        sirenBase = drv("Siren").ToString().Replace(" ", "").Trim()
+                    End If
+                    If drv.Row.Table.Columns.Contains("Siret_Vend") AndAlso Not IsDBNull(drv("Siret_Vend")) Then
+                        siretBase = drv("Siret_Vend").ToString().Replace(" ", "").Trim()
+                    End If
+                    
+                    Dim isNumericSiren As Boolean = sirenBase.Length >= 9 AndAlso IsNumeric(sirenBase.Substring(0, 9))
+                    Dim isNumericSiret As Boolean = siretBase.Length >= 9 AndAlso IsNumeric(siretBase.Substring(0, 9))
+                    
+                    If String.IsNullOrEmpty(sirenBase) OrElse sirenBase.ToLower() = "null" OrElse Not isNumericSiren Then
+                        If Not String.IsNullOrEmpty(siretBase) AndAlso siretBase.ToLower() <> "null" AndAlso isNumericSiret Then
+                            sirenBase = siretBase
+                        End If
+                    End If
+
+                    If sirenBase.Length >= 9 Then
+                        sirenBase = sirenBase.Substring(0, 9)
+                    End If
+                End If
+                
+                txtSiren.Text = sirenBase
+            Else
+                txtSiren.Text = "NODATA"
+            End If
+
+            ' On vérifie si le fournisseur existe dans LocPro avec ce SIREN
+            Dim existeDansLocPro As Boolean = False
+            If Not String.IsNullOrEmpty(txtSiren.Text) AndAlso txtSiren.Text.Length >= 9 Then
+                Dim sirenRecherche As String = txtSiren.Text.Substring(0, 9)
+                Dim dtFourn = GestionnaireBddFacture.retournerFournisseurSiren(sirenRecherche)
+                If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
+                    existeDansLocPro = True
+                End If
+            End If
+
+            Dim lblSirenText As Label = CType(item.FindControl("lblSirenText"), Label)
+            
+            If existeDansLocPro Then
+                ' Fournisseur trouvé : On affiche le SIREN en texte plat et on cache l'input
+                If lblSirenText IsNot Nothing Then
+                    lblSirenText.Text = sirenBase
+                    lblSirenText.Visible = True
+                End If
+                txtSiren.Visible = False
+                btnValiderSiren.Visible = False
+                
+                ' La colonne FOURNISSEUR (ColRaisonSocialeDemat) garde sa valeur normale (RaisonSociale)
+                If lblFournisseur IsNot Nothing Then
+                    lblFournisseur.Visible = True
+                End If
+            Else
+                ' Fournisseur introuvable : On affiche l'input avec le SIREN dedans, et on VIDE le nom du fournisseur
+                If lblSirenText IsNot Nothing Then
+                    lblSirenText.Visible = False
+                End If
+                txtSiren.Visible = True
+                btnValiderSiren.Visible = True
+                
+                If lblFournisseur IsNot Nothing Then
+                    lblFournisseur.Visible = False
+                    lblFournisseur.Text = ""
+                End If
+                
+                ' Vider la cellule FOURNISSEUR elle-même si jamais le text est directement sur la cellule
+                Dim cellF As TableCell = item("ColRaisonSociale")
+                If cellF IsNot Nothing Then
+                    cellF.Text = "&nbsp;"
+                End If
+            End If
+        Catch ex As Exception
+            Dim txtSirenErr As TextBox = CType(item.FindControl("txtSiret"), TextBox)
+            If txtSirenErr IsNot Nothing Then
+                txtSirenErr.Text = "ERR"
+                txtSirenErr.ToolTip = ex.Message
+            End If
+        End Try
     End Sub
 
     Protected Async Sub ddlStatutCycleDeVie_SelectedIndexChanged(sender As Object, e As DropDownListEventArgs)

@@ -23,7 +23,7 @@ Public Class GestionnaireBddFacture
     Public Shared Function retournerInfosMouvement(codeParc As String, dateFac As Date) As DataTable
         Dim sql As String = "SELECT top 1 * FROM F570MVT WHERE f570dtdep <= '" & dateFac & " 23:59:59' AND K570T58POS='ENTRETIEN' AND K570090UNI='" & codeParc & "' order by f570dtdep DESC;"
         Using acd As New AccesDonnees()
-            Return acd.creation_datatable(sql, BaseDeDonneesLPTest)
+            Return acd.creation_datatable(sql, BaseDeDonneesLP)
         End Using
     End Function
 
@@ -33,7 +33,21 @@ Public Class GestionnaireBddFacture
         ' ne pas oublier de modifier la méthode appelante qui mets les informations de la table dans l'objet "InfosFournisseur"
         Dim sql As String = "SELECT F050KY FROM F050TIERS inner join F020ADR on F050TIERS.K050020ADR = F020ADR.f020ky WHERE F020SIRET = '" & siret.Replace(" ", "") & "';"
         Using acd As New AccesDonnees()
-            Return acd.creation_datatable(sql, BaseDeDonneesLPTest)
+            Return acd.creation_datatable(sql, BaseDeDonneesLP)
+        End Using
+    End Function
+
+    Public Shared Function retournerFournisseurSiren(siren As String) As DataTable
+        Dim sirenClean As String = siren.Trim().Replace(" ", "")
+        Dim sql As String = "SELECT F050KY FROM F050TIERS WHERE F050SIREN = '" & sirenClean & "';"
+        Using acd As New AccesDonnees()
+            Dim dt As DataTable = acd.creation_datatable(sql, BaseDeDonneesLP)
+            If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then
+                Return dt
+            Else
+                Dim sqlFallback As String = "SELECT F050KY FROM F050TIERS inner join F020ADR on F050TIERS.K050020ADR = F020ADR.f020ky WHERE F020SIRET LIKE '" & sirenClean & "%';"
+                Return acd.creation_datatable(sqlFallback, BaseDeDonneesLP)
+            End If
         End Using
     End Function
 
@@ -43,7 +57,7 @@ Public Class GestionnaireBddFacture
 
         Dim dt As DataTable
         Using acd As New AccesDonnees()
-            dt = acd.creation_datatable(sql, BaseDeDonneesTest)
+            dt = acd.creation_datatable(sql, BaseDeDonnees)
         End Using
 
         If dt Is Nothing OrElse dt.Rows.Count = 0 Then Return Nothing
@@ -58,7 +72,7 @@ Public Class GestionnaireBddFacture
         Dim sql As String = "SELECT COUNT(*) FROM HistoFacFournisseur WHERE NumOR = '" & numOR & "' AND NumFacture = '" & numFacture & "';"
         Dim dt As DataTable
         Using acd As New AccesDonnees()
-            dt = acd.creation_datatable(sql, BaseDeDonneesTest)
+            dt = acd.creation_datatable(sql, BaseDeDonnees)
         End Using
 
         If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then
@@ -86,7 +100,7 @@ Public Class GestionnaireBddFacture
             & "'" & statut & "', '" & message.Replace("'", "''") & "', '" & utilisateur & "', GETDATE(), '" & dateDebMouv & "', '" & dateFinMouv & "', " & compteurKm & ");"
 
         Using acd As New AccesDonnees()
-            acd.ExecuterCommande(sql, BaseDeDonneesTest)
+            acd.ExecuterCommande(sql, BaseDeDonnees)
         End Using
     End Sub
 
@@ -106,7 +120,7 @@ Public Class GestionnaireBddFacture
             & "," & Replace(tva.ToString().Replace(",", "."), ",", ".") & ");"
 
         Using acd As New AccesDonnees()
-            acd.ExecuterCommande(sql, BaseDeDonneesTest)
+            acd.ExecuterCommande(sql, BaseDeDonnees)
         End Using
     End Sub
 
@@ -118,7 +132,7 @@ Public Class GestionnaireBddFacture
             & "WHERE NumOR = '" & numOR & "' AND NumFacture = '" & numFacture & "';"
 
         Using acd As New AccesDonnees()
-            acd.ExecuterCommande(sql, BaseDeDonneesTest)
+            acd.ExecuterCommande(sql, BaseDeDonnees)
         End Using
     End Sub
 
@@ -135,7 +149,7 @@ Public Class GestionnaireBddFacture
             "ORDER BY DateImport DESC"
 
         Using acd As New AccesDonnees()
-            Return acd.creation_datatable(sql, BaseDeDonneesTest)
+            Return acd.creation_datatable(sql, BaseDeDonnees)
         End Using
     End Function
 
@@ -152,7 +166,7 @@ Public Class GestionnaireBddFacture
             "ORDER BY NumLig"
 
         Using acd As New AccesDonnees()
-            Return acd.creation_datatable(sql, BaseDeDonneesTest)
+            Return acd.creation_datatable(sql, BaseDeDonnees)
         End Using
     End Function
 
@@ -169,7 +183,7 @@ Public Class GestionnaireBddFacture
 
             Dim dt As DataTable
             Using acd As New AccesDonnees()
-                dt = acd.creation_datatable(sql, BaseDeDonneesTest)
+                dt = acd.creation_datatable(sql, BaseDeDonnees)
             End Using
 
             If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then
@@ -199,7 +213,7 @@ Public Class GestionnaireBddFacture
             Dim sql As String = "SELECT COUNT(*) FROM F100PRO WHERE F100KY = '" & codePrestation.Trim() & "';"
 
             Using acd As New AccesDonnees()
-                Using dr As SqlDataReader = acd.RetournerDataReader(sql, BaseDeDonneesLPTest)
+                Using dr As SqlDataReader = acd.RetournerDataReader(sql, BaseDeDonneesLP)
                     If dr.Read() Then
                         Dim count As Integer = Convert.ToInt32(dr(0))
                         Return count > 0
@@ -256,7 +270,7 @@ Public Class GestionnaireBddFacture
                                "AND CodePrestaFournisseur = '" & codePrestaFournisseur.Trim().Replace("'", "''") & "';"
 
             Using acd As New AccesDonnees()
-                Using dr As SqlDataReader = acd.RetournerDataReader(sql, BaseDeDonneesTest)
+                Using dr As SqlDataReader = acd.RetournerDataReader(sql, BaseDeDonnees)
                     If dr.Read() AndAlso Not IsDBNull(dr("MontantNetHT")) Then
                         Return Convert.ToDecimal(dr("MontantNetHT"))
                     End If
@@ -296,7 +310,7 @@ Public Class GestionnaireBddFacture
 
             Dim nbLignes As Integer
             Using acd As New AccesDonnees()
-                nbLignes = acd.ExecuterCommande(sql, BaseDeDonneesTest)
+                nbLignes = acd.ExecuterCommande(sql, BaseDeDonnees)
             End Using
 
             If nbLignes > 0 Then
@@ -333,7 +347,7 @@ Public Class GestionnaireBddFacture
                                "AND Actif = 1;"
 
             Using acd As New AccesDonnees()
-                Using dr As SqlDataReader = acd.RetournerDataReader(sql, BaseDeDonneesTest)
+                Using dr As SqlDataReader = acd.RetournerDataReader(sql, BaseDeDonnees)
                     If dr.Read() Then
                         Dim count As Integer = Convert.ToInt32(dr(0))
                         Return count > 0
@@ -370,7 +384,7 @@ Public Class GestionnaireBddFacture
                                "AND Actif = 1;"
 
             Using acd As New AccesDonnees()
-                Using dr As SqlDataReader = acd.RetournerDataReader(sql, BaseDeDonneesTest)
+                Using dr As SqlDataReader = acd.RetournerDataReader(sql, BaseDeDonnees)
                     If dr.Read() AndAlso Not IsDBNull(dr("RegleLP")) Then
                         Dim jsonRegle As String = dr("RegleLP").ToString()
 
@@ -416,7 +430,7 @@ Public Class GestionnaireBddFacture
                                "AND f.Statut = 'PRESTATION_INEXISTANTE';"
 
             Using acd As New AccesDonnees()
-                Return acd.creation_datatable(sql, BaseDeDonneesTest)
+                Return acd.creation_datatable(sql, BaseDeDonnees)
             End Using
 
         Catch ex As Exception
@@ -446,7 +460,7 @@ Public Class GestionnaireBddFacture
 
             Dim nbLignes As Integer
             Using acd As New AccesDonnees()
-                nbLignes = acd.ExecuterCommande(sql, BaseDeDonneesTest)
+                nbLignes = acd.ExecuterCommande(sql, BaseDeDonnees)
             End Using
 
             If nbLignes > 0 Then
@@ -485,7 +499,7 @@ Public Class GestionnaireBddFacture
 
             Dim nbLignes As Integer
             Using acd As New AccesDonnees()
-                nbLignes = acd.ExecuterCommande(sql, BaseDeDonneesTest)
+                nbLignes = acd.ExecuterCommande(sql, BaseDeDonnees)
             End Using
 
             If nbLignes > 0 Then
@@ -519,7 +533,7 @@ Public Class GestionnaireBddFacture
                                "ORDER BY DateImport DESC"
 
             Using acd As New AccesDonnees()
-                Return acd.creation_datatable(sql, BaseDeDonneesTest)
+                Return acd.creation_datatable(sql, BaseDeDonnees)
             End Using
 
         Catch ex As Exception
@@ -546,7 +560,7 @@ Public Class GestionnaireBddFacture
 
             Dim nbLignes As Integer
             Using acd As New AccesDonnees()
-                nbLignes = acd.ExecuterCommande(sql, BaseDeDonneesTest)
+                nbLignes = acd.ExecuterCommande(sql, BaseDeDonnees)
             End Using
 
             Return nbLignes > 0
@@ -574,7 +588,7 @@ Public Class GestionnaireBddFacture
                                "AND NumFacture = '" & numFacture.Trim().Replace("'", "''") & "';"
 
             Dim acd As New AccesDonnees()
-            Dim nbLignes As Integer = acd.ExecuterCommande(sql, BaseDeDonneesTest)
+            Dim nbLignes As Integer = acd.ExecuterCommande(sql, BaseDeDonnees)
 
             Return nbLignes > 0
 
@@ -604,7 +618,7 @@ Public Class GestionnaireBddFacture
                                "AND NumFacture = '" & numFacture.Trim().Replace("'", "''") & "';"
 
             Dim acd As New AccesDonnees()
-            Dim nbLignes As Integer = acd.ExecuterCommande(sql, BaseDeDonneesTest)
+            Dim nbLignes As Integer = acd.ExecuterCommande(sql, BaseDeDonnees)
 
             If nbLignes > 0 Then
                 GestionnaireLog.Info("Infos fournisseur mises à jour : " & codeFournisseur)
@@ -634,7 +648,7 @@ Public Class GestionnaireBddFacture
                                "AND NumFacture = '" & numFacture.Trim().Replace("'", "''") & "';"
 
             Dim acd As New AccesDonnees()
-            Return acd.creation_datatable(sql, BaseDeDonneesTest)
+            Return acd.creation_datatable(sql, BaseDeDonnees)
 
         Catch ex As Exception
             GestionnaireLog.Error("Erreur récupération facture : " & ex.Message)
@@ -666,7 +680,7 @@ Public Class GestionnaireBddFacture
                                "AND NumFacture = '" & numFacture.Trim().Replace("'", "''") & "';"
 
             Dim acd As New AccesDonnees()
-            Dim nbLignes As Integer = acd.ExecuterCommande(sql, BaseDeDonneesTest)
+            Dim nbLignes As Integer = acd.ExecuterCommande(sql, BaseDeDonnees)
 
             If nbLignes > 0 Then
                 GestionnaireLog.Info("SIRET mis à jour : " & numFacture & " → " & nouveauSiret)
@@ -689,11 +703,13 @@ Public Class GestionnaireBddFacture
     ''' </summary>
     Public Shared Function getFactureDemat() As DataTable
         Try
-            Dim sql As String = "SELECT TOP 1000 " &
+            Dim sql As String = "SELECT " &
                                "Statut AS Statut, " &
                                "NumeroFacture AS NumFacture, " &
                                "DateEmi AS DateFacture, " &
                                "SocieteEmet AS RaisonSociale, " &
+                               "Siren_Vend AS Siren, " &
+                               "Siret_Vend AS Siret_Vend, " &
                                "'' AS Immat, " &
                                "'' AS CodeParc, " &
                                "MontantHT AS TotalHT, " &
@@ -706,7 +722,7 @@ Public Class GestionnaireBddFacture
                                "ORDER BY DateCreation DESC"
 
             Using acd As New AccesDonnees()
-                Return acd.creation_datatable(sql, BaseDeDonneesTest)
+                Return acd.creation_datatable(sql, BaseDeDonnees)
             End Using
         Catch ex As Exception
             GestionnaireLog.Error("Erreur récupération factures demat : " & ex.Message)
@@ -723,7 +739,7 @@ Public Class GestionnaireBddFacture
             Dim acd As New AccesDonnees()
 
             ' Utilisation d'ADO.NET classique pour éviter l'injection SQL
-            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonneesTest).ConnectionString)
+            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@NouveauStatut", If(String.IsNullOrEmpty(nouveauStatut), DBNull.Value, nouveauStatut))
                     cmd.Parameters.AddWithValue("@IdFacture", idFacture)
@@ -755,7 +771,8 @@ Public Class GestionnaireBddFacture
                                "L.MontantHT AS MontantNetHT, " &
                                "L.TauxTVA AS TVA, " &
                                "I.numOr AS NumOR, " &
-                               "I.NumeroTVA_Vend AS Siret, " &
+                               "I.Siren_Vend AS Siren, " &
+                               "I.Siret_Vend AS Siret_Vend, " &
                                "I.NumeroFacture AS NumFacture " &
                                "FROM D_invoice_lignes L " &
                                "LEFT JOIN D_invoice I ON L.IdFacture = I.IdFacture " &
@@ -764,16 +781,19 @@ Public Class GestionnaireBddFacture
 
             Dim dt As DataTable
             Using acd As New AccesDonnees()
-                dt = acd.creation_datatable(sql, BaseDeDonneesTest)
+                dt = acd.creation_datatable(sql, BaseDeDonnees)
             End Using
 
             If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then
-                ' Récupérer le code fournisseur LocPro à partir du SIRET
-                Dim siret As String = dt.Rows(0)("Siret").ToString()
-                Dim infosFour As InfosFournisseur = Nothing
+                ' Récupérer le code fournisseur LocPro à partir du SIREN
+                Dim siren As String = dt.Rows(0)("Siren").ToString()
+                Dim codeFournisseur As String = ""
 
                 Try
-                    infosFour = ServiceOR.retournerInfosFournisseur(siret)
+                    Dim dtFourn As DataTable = GestionnaireBddFacture.retournerFournisseurSiren(siren)
+                    If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
+                        codeFournisseur = dtFourn.Rows(0)("F050KY").ToString().Trim()
+                    End If
                 Catch ex As Exception
                     ' Ignorer si le fournisseur n'est pas trouvé, on laissera CodePrestaLP vide
                 End Try
@@ -782,11 +802,11 @@ Public Class GestionnaireBddFacture
                     dt.Columns.Add("CodeFournisseur", GetType(String))
                 End If
 
-                If infosFour IsNot Nothing AndAlso Not String.IsNullOrEmpty(infosFour.CodeFournisseur) Then
+                If Not String.IsNullOrEmpty(codeFournisseur) Then
                     For Each row As DataRow In dt.Rows
-                        row("CodeFournisseur") = infosFour.CodeFournisseur
+                        row("CodeFournisseur") = codeFournisseur
                         Dim codePresta As String = row("CodePrestaFournisseur").ToString()
-                        Dim codesLP As List(Of String) = GetCodesLocPro(infosFour.CodeFournisseur, codePresta)
+                        Dim codesLP As List(Of String) = GetCodesLocPro(codeFournisseur, codePresta)
                         If codesLP IsNot Nothing AndAlso codesLP.Count > 0 Then
                             row("CodePrestaLP") = String.Join(", ", codesLP)
                         End If
@@ -803,7 +823,7 @@ Public Class GestionnaireBddFacture
     Public Shared Sub UpdateSiret(numOR As String, numFacture As String, siret As String)
         Try
             Dim sql As String = "UPDATE HistoriqueFactures SET Siret = @Siret WHERE NumOR = @NumOR AND NumFacture = @NumFacture"
-            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonneesTest).ConnectionString)
+            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@Siret", siret.Trim().Replace(" ", ""))
                     cmd.Parameters.AddWithValue("@NumOR", numOR)
@@ -818,12 +838,12 @@ Public Class GestionnaireBddFacture
         End Try
     End Sub
 
-    Public Shared Sub UpdateSiretDemat(idFacture As String, siret As String)
+    Public Shared Sub UpdateSirenDemat(idFacture As String, siren As String)
         Try
-            Dim sql As String = "UPDATE D_invoice SET NumeroTVA_Vend = @Siret WHERE IdFacture = @IdFacture"
-            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonneesTest).ConnectionString)
+            Dim sql As String = "UPDATE D_invoice SET Siren_Vend = @Siren WHERE IdFacture = @IdFacture"
+            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
                 Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@Siret", siret.Trim().Replace(" ", ""))
+                    cmd.Parameters.AddWithValue("@Siren", siren.Trim().Replace(" ", ""))
                     cmd.Parameters.AddWithValue("@IdFacture", idFacture)
 
                     conn.Open()
@@ -831,14 +851,32 @@ Public Class GestionnaireBddFacture
                 End Using
             End Using
         Catch ex As Exception
-            GestionnaireLog.Error("Erreur UpdateSiretDemat : " & ex.Message)
+            GestionnaireLog.Error("Erreur UpdateSirenDemat : " & ex.Message)
+        End Try
+    End Sub
+
+    Public Shared Sub UpdateRefFournisseurLigne(idFacture As String, numLigne As String, refFournisseur As String)
+        Try
+            Dim sql As String = "UPDATE D_invoice_lignes SET refArticleFournisseur = @RefFournisseur WHERE IdFacture = @IdFacture AND NumLigne = @NumLigne"
+            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@RefFournisseur", refFournisseur.Trim())
+                    cmd.Parameters.AddWithValue("@IdFacture", idFacture)
+                    cmd.Parameters.AddWithValue("@NumLigne", numLigne)
+
+                    conn.Open()
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+        Catch ex As Exception
+            GestionnaireLog.Error("Erreur UpdateRefFournisseurLigne : " & ex.Message)
         End Try
     End Sub
 
     Public Shared Sub MettreAJourRaisonSocialeDemat(idFacture As String, raisonSociale As String)
         Try
             Dim sql As String = "UPDATE D_invoice SET SocieteEmet = @RaisonSociale WHERE IdFacture = @IdFacture"
-            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonneesTest).ConnectionString)
+            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@RaisonSociale", raisonSociale)
                     cmd.Parameters.AddWithValue("@IdFacture", idFacture)
@@ -855,7 +893,7 @@ Public Class GestionnaireBddFacture
     Public Shared Sub MettreAJourStatutFactureDemat(idFacture As String, statut As String, Optional message As String = "")
         Try
             Dim sql As String = "UPDATE D_invoice SET Statut = @Statut, Message = @Message WHERE IdFacture = @IdFacture"
-            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonneesTest).ConnectionString)
+            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@Statut", statut)
                     cmd.Parameters.AddWithValue("@Message", message)
@@ -874,7 +912,7 @@ Public Class GestionnaireBddFacture
         Try
             Dim sql As String = "SELECT TOP (1) FichierPDF FROM FacturesPDF WHERE NumFac = @NumFacture"
 
-            Using conn As New System.Data.SqlClient.SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonneesTest).ConnectionString)
+            Using conn As New System.Data.SqlClient.SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
                 Using cmd As New System.Data.SqlClient.SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@NumFacture", If(String.IsNullOrEmpty(numFacture), DBNull.Value, numFacture))
                     conn.Open()
@@ -927,7 +965,7 @@ Public Class GestionnaireBddFacture
                                "AND f.Statut = 'PRESTATION_INEXISTANTE';"
 
             Dim acd As New AccesDonnees()
-            Return acd.creation_datatable(sql, BaseDeDonneesTest)
+            Return acd.creation_datatable(sql, BaseDeDonnees)
 
         Catch ex As Exception
             GestionnaireLog.Error("Erreur récupération factures demat non matchées : " & ex.Message)
@@ -942,7 +980,7 @@ Public Class GestionnaireBddFacture
                                "ORDER BY DateCreation DESC"
 
             Dim acd As New AccesDonnees()
-            Return acd.creation_datatable(sql, BaseDeDonneesTest)
+            Return acd.creation_datatable(sql, BaseDeDonnees)
         Catch ex As Exception
             GestionnaireLog.Error("Erreur récupération factures Demat EN_ATTENTE : " & ex.Message)
             Return New DataTable()
@@ -960,7 +998,7 @@ Public Class GestionnaireBddFacture
             Dim acd As New AccesDonnees()
             Dim dt As New DataTable()
 
-            Using conn As New System.Data.SqlClient.SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonneesTest).ConnectionString)
+            Using conn As New System.Data.SqlClient.SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
                 Using cmd As New System.Data.SqlClient.SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@IdFacture", idFacture)
                     Using da As New System.Data.SqlClient.SqlDataAdapter(cmd)
