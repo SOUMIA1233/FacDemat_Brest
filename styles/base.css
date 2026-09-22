@@ -1,0 +1,590 @@
+﻿/*normalize*/
+html, 
+body, 
+form {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	font: normal 16px "Segoe UI", Arial, sans-serif;
+    color: #555555;
+}
+
+@media only screen and (min-width: 481px) and (max-width: 720px) {
+    body {
+        font-size: 18px;
+    }
+}
+
+@media only screen and (max-width: 480px) {
+    body {
+        font-size: 20px;
+    }
+}
+a {
+  background: transparent;
+}
+
+img {
+  border: 0;
+}
+
+/* à enlever ? */
+button,
+input {
+  -webkit-appearance: none; 
+  cursor: pointer; 
+}
+
+hr {
+    border-width: 1px 0 0 0;
+    border-color: #767676;
+    border-style: solid;
+}
+
+/*typography*/
+h1, h2, h3, h4, h5, h6 {
+    line-height: normal;
+}
+
+h1, h2, h3 {
+    font-weight: normal;
+    margin: .5em 0;
+}
+
+h4, h5, h6 {
+    font-weight: bold;
+}
+
+h1 {
+    font-size: 2.25em;
+}
+
+h2 {
+    font-size: 1.875em;
+}
+
+h3 {
+    font-size: 1.5em;
+}
+
+h4 {
+    font-size: 1.125em
+}
+
+h5 {
+    font-size: 1em;
+}
+
+h6 {
+    font-size: .875em;
+}
+
+/*template*/
+#wrapper .t-container-fluid {
+    max-width: 100%;
+}
+
+#wrapper .RadButton {
+    font-size: 1em;
+}
+
+#wrapper .RadMenu,
+div.RadMenuPopup,
+#wrapper .RadMenu_Default, #wrapper .RadMenu_Default a.rmLink  {
+    font-size: 1em;
+}
+
+
+.center-content {
+    width: 90% !important;
+    margin: auto !important;
+}
+
+.bouton-custom {
+    border-radius: 5px !important;
+    background-color: #FFDC00 !important;
+    font-weight: bold !important;
+    transition: background-color 0.4s ease-in-out, color 0.4s ease-in-out;
+}
+
+.bouton-hover {
+    background-color: black !important;
+    color: white !important;
+}
+
+.input {
+    border-radius: 5px !important;
+}
+
+.row {
+    display: flex;
+    /*align-items: center;*/
+    /*gap: 15px;*/
+    margin-bottom: 15px;
+}
+
+.rowAntai {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap; /* retour à la ligne si écran trop petit */
+}
+
+    .rowAntai .bouton-custom {
+        width: auto !important; /* évite qu’ils prennent 100% */
+        white-space: nowrap;
+    }
+/* Badges de statut */
+.statut-badge {
+    padding: 5px 12px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 11px;
+    text-align: center;
+    display: inline-block;
+    min-width: 100px;
+}
+
+.statut-succes {
+    background-color: #4caf50;
+    color: white;
+}
+
+.statut-en_attente,
+.statut-a_integrer {
+    background-color: #ff9800;
+    /* Orange */
+    color: white;
+}
+.statut-prestation_inexistante {
+    background-color: #ff5722;
+    color: white;
+}
+
+.statut-erreur_locpro,
+.statut-fournisseur_introuvable,
+.statut-fournisseur_inexistant,
+.statut-supplier_not_found {
+    background-color: #f44336;
+    color: white;
+}
+
+.statut-parc_introuvable,
+.statut-or_introuvable,
+.statut-fournisseur_inconnu,
+.statut-siret_non_lu {
+    background-color: #FFC107;
+    color: white;
+}
+
+
+/* Style de la grille principale (en-tête factures) */
+#ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgMasterTable {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+/* En-tête du tableau */
+#ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgHeader {
+    background: linear-gradient(to bottom, #035880, #027cb5) !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 13px !important;
+    padding: 12px 8px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+/* Lignes de factures (alternées) */
+#ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgRow {
+    background-color: #ffffff !important;
+    transition: all 0.3s ease !important;
+}
+
+#ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgAltRow {
+    background-color: #f8f9fa !important;
+    transition: all 0.3s ease !important;
+}
+
+    /* Hover sur les lignes */
+    #ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgRow:hover,
+    #ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgAltRow:hover {
+        background-color: #e3f2fd !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* ===== LIGNE DÉVELOPPÉE (avec détails visibles) ===== */
+    #ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgRow.rgExpandedRow,
+    #ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgAltRow.rgExpandedRow {
+        background: linear-gradient(to right, #fff3e0, #ffe0b2) !important;
+        border-left: 4px solid #ff9800 !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2) !important;
+    }
+
+/* ===== SECTION DES DÉTAILS (lignes de prestations) ===== */
+#ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgDetailTable {
+    background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%) !important;
+    border: 2px solid #ff9800 !important;
+    border-radius: 8px !important;
+    margin: 10px 20px !important;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.08) !important;
+}
+
+    /* En-tête des détails */
+    #ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgDetailTable .rgHeader {
+        background: linear-gradient(to bottom, #757575, #616161) !important;
+        color: white !important;
+        font-size: 12px !important;
+        padding: 10px 8px !important;
+    }
+
+    /* Lignes des détails */
+    #ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgDetailTable .rgRow {
+        background-color: #fafafa !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+    }
+
+    #ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgDetailTable .rgAltRow {
+        background-color: #ffffff !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+    }
+
+/* Hover sur les lignes de détails */
+        #ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgDetailTable .rgRow:hover,
+        #ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgDetailTable .rgAltRow:hover {
+            background-color: #fff9c4 !important;
+        }
+
+/* Cellules des détails */
+    #ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgDetailTable td {
+        padding: 8px !important;
+        font-size: 14px !important;
+    }
+
+/* ===== BOUTON EXPAND/COLLAPSE ===== */
+.rgExpandCol {
+    width: 30px !important;
+    text-align: center !important;
+}
+
+.rgExpand,
+.rgCollapse {
+    cursor: pointer !important;
+    font-size: 16px !important;
+    transition: transform 0.3s ease !important;
+}
+
+    .rgExpand:hover,
+    .rgCollapse:hover {
+        transform: scale(1.2) !important;
+    }
+
+/* ===== PAGER (pagination) ===== */
+#ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgPager {
+    background: #f5f5f5 !important;
+    border-top: 2px solid #2196F3 !important;
+    padding: 10px !important;
+}
+
+/* ===== COMMAND ITEM (boutons en haut) ===== */
+#ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgCommandRow {
+    background: #e3f2fd !important;
+    padding: 10px !important;
+    border-bottom: 2px solid #2196F3 !important;
+}
+
+/* ===== SÉPARATEUR VISUEL ENTRE FACTURES ===== */
+#ctl00_ContentPlaceHolder1_rgHistoriqueFactures .rgMasterTable > tbody > tr {
+    border-bottom: 2px solid #e0e0e0;
+}
+
+/* ===== AMÉLIORATION DES BORDURES ===== */
+#ctl00_ContentPlaceHolder1_rgHistoriqueFactures td {
+    border-right: 1px solid #f0f0f0 !important;
+    padding: 10px 8px !important;
+}
+
+.rgExpandedRow {
+    background-color: #fceab8 !important;
+    border-left: 4px solid #ff9800 !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2) !important;
+}
+
+.nowrap {
+    white-space: nowrap !important;
+}
+
+.siret-readonly {
+    font-family: 'Courier New', monospace;
+    padding: 5px;
+}
+
+/* Style pour le TextBox SIRET */
+.siret-textbox {
+    border: 2px solid #ff9800;
+    padding: 5px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+    .siret-textbox:focus {
+        outline: none;
+        border-color: #f57c00;
+        box-shadow: 0 0 5px rgba(255, 152, 0, 0.5);
+    }
+
+/* Bouton valider SIRET */
+.btn-validate-siret {
+    text-decoration: none;
+    padding: 5px 10px;
+    background-color: #e8f5e9;
+    border-radius: 50%;
+    display: inline-block;
+    transition: all 0.3s;
+}
+
+    .btn-validate-siret:hover {
+        background-color: #4caf50;
+        transform: scale(1.1);
+    }
+
+/* Label "Actuel" */
+.siret-actuel {
+    display: block;
+    margin-top: 2px;
+    font-style: italic;
+}
+
+
+/* Style pour le label Code Presta */
+.code-presta-label {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    padding: 4px 8px;
+    font-size: 14px;
+}
+
+    .code-presta-label:empty {
+        background-color: #ffebee;
+    }
+
+        .code-presta-label:empty::before {
+            content: "Non défini";
+            color: #c62828;
+            font-style: italic;
+        }
+
+/* Bouton mini "Ajouter règle" dans les détails */
+.btn-ajouter-regle-mini {
+    text-decoration: none;
+    padding: 4px 8px;
+    background-color: #fff3e0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    border: 2px solid #ff9800;
+    width: 26px;
+    height: 32px;
+}
+
+    .btn-ajouter-regle-mini:hover {
+        background-color: #ff9800;
+        transform: scale(1.15);
+        box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
+    }
+
+        .btn-ajouter-regle-mini:hover span {
+            color: white !important;
+        }
+
+
+.btn-reintegrer-tout {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 12px 30px;
+}
+
+.label-resultat-reintegration {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+
+/* ═══════════════════════════════════════════════════════════ */
+/* ÉDITION INLINE SIRET/IMMAT - STYLE MODERNE                   */
+/* ═══════════════════════════════════════════════════════════ */
+
+/* Container des champs éditables */
+.editable-field-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.editable-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+/* Animation d'apparition */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* TextBox éditables - Style moderne */
+.textbox-editable {
+    padding: 8px 12px;
+    border: 2px solid #ffc107;
+    border-radius: 6px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    background-color: #fffbf0;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.1);
+}
+
+    .textbox-editable:focus {
+        outline: none;
+        border-color: #ff9800;
+        background-color: #fff;
+        box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1), 0 4px 8px rgba(255, 193, 7, 0.2);
+        transform: translateY(-1px);
+    }
+
+    .textbox-editable::placeholder {
+        color: #999;
+        font-style: italic;
+        font-weight: 400;
+    }
+
+/* Largeurs spécifiques */
+.textbox-siret {
+    width: 150px;
+    letter-spacing: 0.5px;
+}
+
+.textbox-immat {
+    width: 110px;
+    text-transform: uppercase;
+}
+
+/* Bouton de validation - Style Telerik intégré */
+.btn-valider {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 !important;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    border: none !important;
+    border-radius: 6px !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+}
+
+    .btn-valider:hover {
+        background: linear-gradient(135deg, #218838 0%, #1aa179 100%) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    }
+
+    .btn-valider:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+    }
+
+    /* Icône du bouton */
+    .btn-valider .rbOk {
+        color: white !important;
+        font-size: 16px;
+    }
+
+/* Label en lecture seule */
+.label-readonly {
+    padding: 6px 10px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    color: #495057;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #6c757d;
+}
+
+    /* Animation au survol du label */
+    .label-readonly:hover {
+        background-color: #e9ecef;
+    }
+
+/* État d'erreur (si validation échoue) */
+.textbox-editable.error {
+    border-color: #dc3545;
+    background-color: #fff5f5;
+    animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-8px);
+    }
+
+    75% {
+        transform: translateX(8px);
+    }
+}
+
+/* Responsive - Réduire la taille sur petits écrans */
+@media (max-width: 768px) {
+    .textbox-siret {
+        width: 130px;
+        font-size: 12px;
+    }
+
+    .textbox-immat {
+        width: 95px;
+        font-size: 12px;
+    }
+
+    .btn-valider {
+        min-width: 32px;
+        height: 32px;
+    }
+}
+
+/* Style pour les colonnes du RadGrid */
+.rgRow .editable-field-container,
+.rgAltRow .editable-field-container {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+}
+
+.t-container-static {
+    width: 1850px !important;
+}
