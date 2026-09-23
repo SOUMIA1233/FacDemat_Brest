@@ -1,4 +1,4 @@
-Imports System.IO
+﻿Imports System.IO
 Imports Telerik.Web.UI
 Imports System
 
@@ -134,9 +134,6 @@ Partial Class integrationFactures
 
                 GererEditionFournisseur(dataItem, statut)
                 GererEditionImmat(dataItem, statut)
-                
-                ' Filtrer la liste des statuts Cycle de Vie disponibles
-                FiltrerStatutsCycleDeVie(dataItem)
             End If
 
             ' ===== GESTION TABLE DE DÉTAILS (LIGNES) =====
@@ -260,26 +257,7 @@ Partial Class integrationFactures
         End Try
     End Sub
 
-    Protected Sub btnReintegrerToutDemat_Click(sender As Object, e As EventArgs) Handles btnReintegrerToutDemat.Click
-        Try
-            ' Masquer le résultat précédent
-            lblResultatReintegrationDemat.Visible = False
 
-            ' Lancer le traitement
-            Dim resultat As ServiceReintegration.ResultatLot = ServiceReintegration.ReintegrerFacturesDematParLot()
-
-            ' Afficher le résultat
-            AfficherResultatReintegration(resultat, lblResultatReintegrationDemat)
-            ChargerHistorique()
-            rgFacturesDemat.Rebind()
-            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "RefreshGridDemat", "setTimeout(function() { refreshRadGrid(); }, 500);", True)
-        Catch ex As Exception
-            GestionnaireLog.Error("Erreur bouton ré-intégrer tout Demat : " & ex.ToString())
-            lblResultatReintegrationDemat.Text = "&#10060; Erreur critique : " & ex.Message
-            lblResultatReintegrationDemat.ForeColor = System.Drawing.Color.Red
-            lblResultatReintegrationDemat.Visible = True
-        End Try
-    End Sub
 
     ''' <summary>
     ''' Affiche le résultat du traitement par lot
@@ -428,8 +406,8 @@ Partial Class integrationFactures
             Dim dt As System.Data.DataTable = GestionnaireBddFacture.getFactureDemat()
             If dt IsNot Nothing Then
                 Dim dv As System.Data.DataView = dt.DefaultView
-                ' Exclure les factures terminées (PAID et REFUSED)
-                dv.RowFilter = "ISNULL(StatutCycleDeVie, '') NOT IN ('PAID', 'REFUSED', 'paid', 'refused', 'Paiement Transmis', 'Refusée', 'PAIEMENT TRANSMIS', 'REFUSÉE')"
+                ' Exclure les factures terminées (PAID = Encaissée)
+                dv.RowFilter = "ISNULL(StatutCycleDeVie, '') NOT IN ('PAID', 'paid', 'Encaissée', 'ENCAISSÉE')"
                 rgFacturesDemat.DataSource = dv
             Else
                 rgFacturesDemat.DataSource = dt
@@ -445,8 +423,8 @@ Partial Class integrationFactures
             Dim dt As System.Data.DataTable = GestionnaireBddFacture.getFactureDemat()
             If dt IsNot Nothing Then
                 Dim dv As System.Data.DataView = dt.DefaultView
-                ' Inclure uniquement les factures terminées (PAID et REFUSED)
-                Dim filterExpression As String = "StatutCycleDeVie IN ('PAID', 'REFUSED', 'paid', 'refused', 'Paiement Transmis', 'Refusée', 'PAIEMENT TRANSMIS', 'REFUSÉE')"
+                ' Inclure uniquement les factures terminées (PAID = Encaissée)
+                Dim filterExpression As String = "StatutCycleDeVie IN ('PAID', 'paid', 'Encaissée', 'ENCAISSÉE')"
 
                 ' Appliquer les filtres personnalisés
                 If txtFiltreFournisseur IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(txtFiltreFournisseur.Text) Then
@@ -517,7 +495,7 @@ Partial Class integrationFactures
                     Dim statut As String = lblStatut.Text.Trim()
                     GererEditionFournisseurDemat(dataItem, statut)
                 End If
-                
+
                 ' Filtrer la liste des statuts Cycle de Vie disponibles
                 FiltrerStatutsCycleDeVie(dataItem)
 
@@ -532,7 +510,7 @@ Partial Class integrationFactures
     Private Sub FiltrerStatutsCycleDeVie(dataItem As GridDataItem)
         Dim ddlStatutCycleDeVie As Telerik.Web.UI.RadDropDownList = CType(dataItem.FindControl("ddlStatutCycleDeVie"), Telerik.Web.UI.RadDropDownList)
         If ddlStatutCycleDeVie IsNot Nothing Then
-            
+
             Dim currentStatut As String = "IN_PROCESS"
             If dataItem.DataItem IsNot Nothing Then
                 Dim drv As System.Data.DataRowView = TryCast(dataItem.DataItem, System.Data.DataRowView)
@@ -543,41 +521,37 @@ Partial Class integrationFactures
                     End If
                 End If
             End If
-            
+
             Dim itemsToDisable As New List(Of Telerik.Web.UI.DropDownListItem)()
-            
+
             For Each item As Telerik.Web.UI.DropDownListItem In ddlStatutCycleDeVie.Items
                 If item.Value = currentStatut Then Continue For
-                
+
                 Select Case currentStatut
-                    Case "IN_PROCESS"
-                        ' Garder tout actif pour IN_PROCESS
+                    Case "IN_PROCESS", "ACKNOWLEDGE"
+                        ' Garder tout actif pour IN_PROCESS et ACKNOWLEDGE
                     Case Else
-                        ' Pour SUSPENDED(ON_HOLD), UNDER_QUERY, PAID, etc., c'est "one way"
+                        ' Pour ON_HOLD, REFUSED, ACCEPTED, c'est "one way"
                         itemsToDisable.Add(item)
                 End Select
             Next
-            
+
             For Each itemToDisable In itemsToDisable
                 itemToDisable.Enabled = False
             Next
-            
-            ' Si le statut n'est pas IN_PROCESS, on désactive aussi le contrôle entier pour éviter le clic
-            If currentStatut <> "IN_PROCESS" Then
+
+            ' Si le statut n'est pas IN_PROCESS ou ACKNOWLEDGE, on désactive aussi le contrôle entier pour éviter le clic
+            If currentStatut <> "IN_PROCESS" AndAlso currentStatut <> "ACKNOWLEDGE" Then
                 ddlStatutCycleDeVie.Enabled = False
-                
+
                 ' Ajouter une infobulle explicative spécifique au statut
                 Select Case currentStatut
                     Case "ON_HOLD"
-                        ddlStatutCycleDeVie.ToolTip = "Une erreur venant du fournisseur a été signalée. En attente de sa correction avant de pouvoir reprendre la facture."
-                    Case "UNDER_QUERY"
-                        ddlStatutCycleDeVie.ToolTip = "Facture en litige (désaccord). En attente d'une action ou d'un avoir."
+                        ddlStatutCycleDeVie.ToolTip = "La facture est en attente d'une action, d'un avoir ou d'une correction de la part du fournisseur."
                     Case "REFUSED"
-                        ddlStatutCycleDeVie.ToolTip = "Facture définitivement rejetée ."
-                    Case "PAID"
-                        ddlStatutCycleDeVie.ToolTip = "Facture intégrée avec succès, le paiement est acté."
-                    Case "CONDITIONNALY_ACCEPTED"
-                        ddlStatutCycleDeVie.ToolTip = "Facture intégrée mais avec des réserves."
+                        ddlStatutCycleDeVie.ToolTip = "La facture a été refusée manuellement. En attente d'un avoir et/ou d'une nouvelle facture."
+                    Case "ACCEPTED"
+                        ddlStatutCycleDeVie.ToolTip = "La facture a été approuvée, son paiement est validé. Elle pourra ensuite être comptabilisée."
                     Case Else
                         ddlStatutCycleDeVie.ToolTip = "Ce statut est définitif et ne peut plus être modifié manuellement."
                 End Select
@@ -600,7 +574,7 @@ Partial Class integrationFactures
             Dim txtRefFournisseur As TextBox = CType(dataItem.FindControl("txtRefFournisseur"), TextBox)
             Dim btnValiderRefFournisseur As RadButton = CType(dataItem.FindControl("btnValiderRefFournisseur"), RadButton)
             Dim lblRefFournisseur As Label = CType(dataItem.FindControl("lblRefFournisseur"), Label)
-            
+
             Dim refFournisseur As String = ""
             If lblRefFournisseur IsNot Nothing Then
                 refFournisseur = lblRefFournisseur.Text.Trim()
@@ -688,7 +662,7 @@ Partial Class integrationFactures
                         Dim nouvelleRef As String = txtRefFournisseur.Text.Trim()
 
                         GestionnaireBddFacture.UpdateRefFournisseurLigne(idFacture, numLig, nouvelleRef)
-                        
+
                         Dim lblResultat As Label = CType(Me.FindControl("lblResultatReintegrationDemat"), Label)
                         If lblResultat IsNot Nothing Then
                             AfficherResultatAction("Référence mise à jour avec succès.", True, lblResultat)
@@ -698,7 +672,7 @@ Partial Class integrationFactures
                         ScriptManager.RegisterStartupScript(Me, Me.GetType(), "RefreshGrid", "setTimeout(function() { refreshRadGrid(); }, 500);", True)
                     End If
                 End If
-                
+
             Case "AjouterRegleLigne"
                 Dim args As String() = e.CommandArgument.ToString().Split("|"c)
 
@@ -719,7 +693,7 @@ Partial Class integrationFactures
                             Dim innerGrid As RadGrid = CType(sender, RadGrid)
                             Dim parentItem As GridNestedViewItem = CType(innerGrid.NamingContainer, GridNestedViewItem)
                             Dim idFacture As String = parentItem.ParentItem.GetDataKeyValue("IdFacture").ToString()
-                            
+
                             Dim dtFacture = GestionnaireBddFacture.getFactureDemat()
                             Dim rows = dtFacture.Select("IdFacture = '" & idFacture.Replace("'", "''") & "'")
                             If rows.Length > 0 Then
@@ -757,6 +731,11 @@ Partial Class integrationFactures
     ' Pour vérifier la validité du siret saisie
     Protected Sub rgFacturesDemat_ItemCommand(sender As Object, e As GridCommandEventArgs) Handles rgFacturesDemat.ItemCommand, rgFacturesDematHistorique.ItemCommand
         Select Case e.CommandName
+            Case "Comptabiliser"
+                Dim idFacture As String = e.CommandArgument.ToString()
+                ' TODO: Implémenter la logique de comptabilisation complète 
+                ' (Vérifier si Approuvée/Refusée, matcher avec avoir, etc.)
+                ScriptManager.RegisterStartupScript(Me, Me.GetType(), "alertCompta", "alert('En cours de développement : La logique de comptabilisation pour la facture ID " & idFacture.Replace("'", "\'") & " va être implémentée ici.');", True)
 
             Case "ValidateSiren"
                 Dim idFacture As String = e.CommandArgument.ToString()

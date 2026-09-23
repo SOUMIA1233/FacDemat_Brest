@@ -1,4 +1,4 @@
-<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
+﻿<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
     MaintainScrollPositionOnPostback="true" Title="Intégration de Factures fournisseur"
     CodeFile="integrationFactures.aspx.vb" Inherits="integrationFactures" Culture="fr-FR" UICulture="fr-FR"
     CodePage="65001" %>
@@ -117,11 +117,6 @@
                                         <span>Comprendre le processus de cycle de vie</span>
                                     </a>
                                 </div>
-                                <telerik:RadButton ID="btnReintegrerToutDemat" runat="server"
-                                    Text="Ré-intégrer tout (LocPro)" Skin="Bootstrap" ButtonType="StandardButton"
-                                    CssClass="btn-reintegrer-tout" OnClick="btnReintegrerToutDemat_Click">
-                                    <Icon PrimaryIconCssClass="rbRefresh" />
-                                </telerik:RadButton>
                             </div>
 
                             <telerik:RadWindowManager ID="RadWindowManager1" runat="server" Skin="MetroTouch">
@@ -140,13 +135,13 @@
                                 <telerik:RadPageView ID="rpvInProgress" runat="server">
                                     <telerik:RadGrid ID="rgFacturesDemat" runat="server" AutoGenerateColumns="False"
                                         Width="100%" AllowPaging="True" PageSize="20" Skin="MetroTouch"
-                                        CssClass="factures-grid">
+                                        CssClass="factures-grid" Style="font-size: 13px;">
                                         <MasterTableView DataKeyNames="IdFacture" CommandItemDisplay="None"
                                             HierarchyLoadMode="Client" RetainExpandStateOnRebind="true">
                                             <Columns>
                                                 <telerik:GridTemplateColumn HeaderText="Statut" UniqueName="Statut"
                                                     DataField="Statut" SortExpression="Statut"
-                                                    HeaderStyle-Width="160px">
+                                                    HeaderStyle-Width="110px">
                                                     <ItemTemplate>
                                                         <asp:Label ID="lblStatutDemat" runat="server"
                                                             Text='<%# Eval("Statut") %>'
@@ -162,8 +157,8 @@
                                                     DataFormatString="{0:dd/MM/yyyy}" FilterControlWidth="80px"
                                                     HeaderStyle-Width="70px">
                                                 </telerik:GridBoundColumn>
-                                                <telerik:GridTemplateColumn HeaderText="CODE FRN"
-                                                    UniqueName="ColCodeFournisseur" HeaderStyle-Width="100px">
+                                                <telerik:GridTemplateColumn HeaderText="Code Fournisseur"
+                                                    UniqueName="ColCodeFournisseur" HeaderStyle-Width="80px">
                                                     <ItemTemplate>
                                                         <asp:Label ID="lblCodeFournisseur" runat="server"
                                                             CssClass="label-fournisseur"
@@ -172,9 +167,9 @@
                                                     </ItemTemplate>
                                                 </telerik:GridTemplateColumn>
 
-                                                <telerik:GridTemplateColumn HeaderText="NOM FOURNISSEUR"
+                                                <telerik:GridTemplateColumn HeaderText="Nom Fournisseur"
                                                     UniqueName="ColRaisonSociale" DataField="RaisonSociale"
-                                                    SortExpression="RaisonSociale" HeaderStyle-Width="150px">
+                                                    SortExpression="RaisonSociale" HeaderStyle-Width="120px">
                                                     <ItemTemplate>
                                                         <asp:Label ID="lblFournisseur" runat="server"
                                                             Text='<%# Eval("RaisonSociale") %>'
@@ -185,7 +180,7 @@
                                                 </telerik:GridTemplateColumn>
 
                                                 <telerik:GridTemplateColumn HeaderText="SIREN / SIRET"
-                                                    UniqueName="Fournisseur" HeaderStyle-Width="120px">
+                                                    UniqueName="Fournisseur" HeaderStyle-Width="100px">
                                                     <ItemTemplate>
                                                         <asp:Panel ID="pnlFournisseur" runat="server">
                                                             <div style="white-space: nowrap;">
@@ -237,17 +232,22 @@
                                                         <span class="tooltip-cycle">
                                                             <i class="info-icon">i</i>
                                                             <span class="tooltiptext">
-                                                                <b>Prise en charge :</b> En cours de traitement<br />
-                                                                <b>Suspendue :</b> Erreur côté fournisseur. En attente
-                                                                de sa correction<br />
-                                                                <b>Refusée :</b> Facture définitivement rejetée (ex:
-                                                                doublon)<br />
-                                                                <b>Approuvée partiel. :</b> Intégrée avec des
-                                                                réserves<br />
-                                                                <b>Paiement Transmis :</b> Intégrée avec succès,
-                                                                paiement acté<br />
-                                                                <b>En litige :</b> Désaccord, en attente d'une action ou
-                                                                d'un avoir
+                                                                <b>Mise à disposition :</b> La facture a été déposée sur
+                                                                la plateforme de Dématérialisation Partenaire. C'est le
+                                                                statut initial d'attente.<br />
+                                                                <b>Prise en charge :</b> L'acheteur prend connaissance
+                                                                de la facture et l'accepte pour traitement.<br />
+                                                                <b>Suspendue :</b> Le traitement de la facture peut être
+                                                                suspendu lorsqu'une ou plusieurs pièces justificatives
+                                                                sont manquantes (en attente d'un avoir ou d'une
+                                                                correction).<br />
+                                                                <b>Refusée :</b> La facture est refusée manuellement
+                                                                pour un motif commercial ou de gestion. Elle reste
+                                                                visible car on attend la réception d'un avoir (et/ou
+                                                                d'une nouvelle facture) pour enfin la
+                                                                "Comptabiliser".<br />
+                                                                <b>Approuvée :</b> La facture est traitée totalement par
+                                                                l'acheteur. Le paiement est validé
                                                             </span>
                                                         </span>
                                                     </HeaderTemplate>
@@ -257,18 +257,16 @@
                                                             OnSelectedIndexChanged="ddlStatutCycleDeVie_SelectedIndexChanged"
                                                             SelectedValue='<%# If(IsDBNull(Eval("StatutCycleDeVie")) OrElse String.IsNullOrEmpty(Eval("StatutCycleDeVie").ToString()), "IN_PROCESS", Eval("StatutCycleDeVie").ToString().Trim().ToUpper()) %>'>
                                                             <Items>
+                                                                <telerik:DropDownListItem Text="Mise à disposition"
+                                                                    Value="ACKNOWLEDGE" />
                                                                 <telerik:DropDownListItem Text="Prise en charge"
                                                                     Value="IN_PROCESS" />
                                                                 <telerik:DropDownListItem Text="Suspendue"
                                                                     Value="ON_HOLD" />
                                                                 <telerik:DropDownListItem Text="Refusée"
                                                                     Value="REFUSED" />
-                                                                <telerik:DropDownListItem Text="Approuvée Partiellement"
-                                                                    Value="CONDITIONNALY_ACCEPTED" />
-                                                                <telerik:DropDownListItem Text="Paiement Transmis"
-                                                                    Value="PAID" />
-                                                                <telerik:DropDownListItem Text="En litige"
-                                                                    Value="UNDER_QUERY" />
+                                                                <telerik:DropDownListItem Text="Approuvée"
+                                                                    Value="ACCEPTED" />
                                                             </Items>
                                                         </telerik:RadDropDownList>
                                                         <asp:HiddenField ID="hdnIdFactureCycle" runat="server"
@@ -291,11 +289,22 @@
                                                         </a>
                                                     </ItemTemplate>
                                                 </telerik:GridTemplateColumn>
-                                                <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message">
+                                                <telerik:GridTemplateColumn HeaderText="Action"
+                                                    UniqueName="Comptabiliser" ItemStyle-HorizontalAlign="Center"
+                                                    HeaderStyle-HorizontalAlign="Center" HeaderStyle-Width="110px">
+                                                    <ItemTemplate>
+                                                        <telerik:RadButton ID="btnComptabiliser" runat="server"
+                                                            Text="Comptabiliser" CommandName="Comptabiliser"
+                                                            CommandArgument='<%# Eval("IdFacture") %>' Skin="MetroTouch"
+                                                            ButtonType="StandardButton" CssClass="btn-success">
+                                                        </telerik:RadButton>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
+                                                <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message" HeaderStyle-Width="200px">
                                                     <ItemTemplate>
                                                         <asp:Label ID="lblMessageDemat" runat="server"
                                                             Text='<%# Eval("Message") %>'
-                                                            ToolTip='<%# Eval("Message") %>' Font-Size="15px">
+                                                            ToolTip='<%# Eval("Message") %>' Font-Size="12px">
                                                         </asp:Label>
                                                     </ItemTemplate>
                                                 </telerik:GridTemplateColumn>
@@ -355,7 +364,8 @@
                                                                             </telerik:RadLabel>
                                                                             <telerik:RadButton ID="btnAjouterRegleDemat"
                                                                                 runat="server" Visible="false"
-                                                                                AutoPostBack="false" OnClientClicking="openPopupFromBtn"
+                                                                                AutoPostBack="false"
+                                                                                OnClientClicking="openPopupFromBtn"
                                                                                 CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") & "~" & Eval("CodeFournisseur") %>'
                                                                                 ToolTip="Ajouter une correspondance LocPro"
                                                                                 ButtonType="LinkButton" Text="&#10133;"
@@ -455,13 +465,13 @@
                                     </div>
                                     <telerik:RadGrid ID="rgFacturesDematHistorique" runat="server"
                                         AutoGenerateColumns="False" AllowPaging="True" PageSize="20" Skin="MetroTouch"
-                                        CssClass="factures-grid">
+                                        CssClass="factures-grid" Style="font-size: 13px;">
                                         <MasterTableView DataKeyNames="IdFacture" CommandItemDisplay="None"
                                             HierarchyLoadMode="Client" RetainExpandStateOnRebind="true">
                                             <Columns>
                                                 <telerik:GridTemplateColumn HeaderText="Statut" UniqueName="Statut"
                                                     DataField="Statut" SortExpression="Statut"
-                                                    HeaderStyle-Width="130px">
+                                                    HeaderStyle-Width="110px">
                                                     <ItemTemplate>
                                                         <asp:Label ID="lblStatutDemat" runat="server"
                                                             Text='<%# Eval("Statut") %>'
@@ -477,9 +487,18 @@
                                                     DataFormatString="{0:dd/MM/yyyy}" FilterControlWidth="80px"
                                                     HeaderStyle-Width="70px">
                                                 </telerik:GridBoundColumn>
+                                                <telerik:GridTemplateColumn HeaderText="Code Fournisseur"
+                                                    UniqueName="ColCodeFournisseur" HeaderStyle-Width="80px">
+                                                    <ItemTemplate>
+                                                        <asp:Label ID="lblCodeFournisseur" runat="server"
+                                                            CssClass="label-fournisseur"
+                                                            Style="white-space: normal; line-height: 1.1; font-weight: bold;">
+                                                        </asp:Label>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
                                                 <telerik:GridTemplateColumn HeaderText="FOURNISSEUR"
                                                     UniqueName="ColRaisonSocialeDemat" DataField="RaisonSociale"
-                                                    SortExpression="RaisonSociale" HeaderStyle-Width="150px">
+                                                    SortExpression="RaisonSociale" HeaderStyle-Width="120px">
                                                     <ItemTemplate>
                                                         <asp:Label ID="lblFournisseurDemat" runat="server"
                                                             Text='<%# Eval("RaisonSociale") %>'
@@ -490,7 +509,7 @@
                                                 </telerik:GridTemplateColumn>
 
                                                 <telerik:GridTemplateColumn HeaderText="SIREN"
-                                                    UniqueName="FournisseurDemat" HeaderStyle-Width="120px">
+                                                    UniqueName="FournisseurDemat" HeaderStyle-Width="100px">
                                                     <ItemTemplate>
                                                         <asp:Panel ID="pnlFournisseurDemat" runat="server">
                                                             <div style="white-space: nowrap;">
@@ -537,51 +556,7 @@
                                                 <telerik:GridBoundColumn DataField="NumOR" HeaderText="N° Commande"
                                                     UniqueName="NumOR" HeaderStyle-Width="70px">
                                                 </telerik:GridBoundColumn>
-                                                <telerik:GridTemplateColumn UniqueName="StatutCycleDeVie"
-                                                    SortExpression="StatutCycleDeVie" HeaderStyle-Width="130px">
-                                                    <HeaderTemplate>
-                                                        Cycle de Vie (Maileva)
-                                                        <span class="tooltip-cycle">
-                                                            <i class="info-icon">i</i>
-                                                            <span class="tooltiptext">
-                                                                <b>Prise en charge :</b> En cours de traitement<br />
-                                                                <b>Suspendue :</b> Erreur côté fournisseur. En attente
-                                                                de sa correction<br />
-                                                                <b>Refusée :</b> Facture définitivement rejetée (ex:
-                                                                doublon)<br />
-                                                                <b>Approuvée partiel. :</b> Intégrée avec des
-                                                                réserves<br />
-                                                                <b>Paiement Transmis :</b> Intégrée avec succès,
-                                                                paiement acté<br />
-                                                                <b>En litige :</b> Désaccord, en attente d'une action ou
-                                                                d'un avoir
-                                                            </span>
-                                                        </span>
-                                                    </HeaderTemplate>
-                                                    <ItemTemplate>
-                                                        <telerik:RadDropDownList ID="ddlStatutCycleDeVie" runat="server"
-                                                            AutoPostBack="true"
-                                                            OnSelectedIndexChanged="ddlStatutCycleDeVie_SelectedIndexChanged"
-                                                            SelectedValue='<%# If(IsDBNull(Eval("StatutCycleDeVie")) OrElse String.IsNullOrEmpty(Eval("StatutCycleDeVie").ToString()), "IN_PROCESS", Eval("StatutCycleDeVie").ToString().Trim().ToUpper().Replace(" ", "_").Replace("SUSPENDED", "ON_HOLD")) %>'>
-                                                            <Items>
-                                                                <telerik:DropDownListItem Text="Prise en charge"
-                                                                    Value="IN_PROCESS" />
-                                                                <telerik:DropDownListItem Text="Suspendue"
-                                                                    Value="ON_HOLD" />
-                                                                <telerik:DropDownListItem Text="Refusée"
-                                                                    Value="REFUSED" />
-                                                                <telerik:DropDownListItem Text="Approuvée Partiellement"
-                                                                    Value="CONDITIONNALY_ACCEPTED" />
-                                                                <telerik:DropDownListItem Text="Paiement Transmis"
-                                                                    Value="PAID" />
-                                                                <telerik:DropDownListItem Text="En litige"
-                                                                    Value="UNDER_QUERY" />
-                                                            </Items>
-                                                        </telerik:RadDropDownList>
-                                                        <asp:HiddenField ID="hdnIdFactureCycle" runat="server"
-                                                            Value='<%# Eval("IdFacture") %>' />
-                                                    </ItemTemplate>
-                                                </telerik:GridTemplateColumn>
+
                                                 <telerik:GridTemplateColumn HeaderText="PDF" UniqueName="VisualiserPDF"
                                                     ItemStyle-HorizontalAlign="Center"
                                                     HeaderStyle-HorizontalAlign="Center" HeaderStyle-Width="50px">
@@ -594,11 +569,12 @@
                                                         </a>
                                                     </ItemTemplate>
                                                 </telerik:GridTemplateColumn>
-                                                <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message">
+
+                                                <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message" HeaderStyle-Width="200px">
                                                     <ItemTemplate>
                                                         <asp:Label ID="lblMessageDemat" runat="server"
                                                             Text='<%# Eval("Message") %>'
-                                                            ToolTip='<%# Eval("Message") %>' Font-Size="15px">
+                                                            ToolTip='<%# Eval("Message") %>' Font-Size="12px">
                                                         </asp:Label>
                                                     </ItemTemplate>
                                                 </telerik:GridTemplateColumn>
@@ -658,7 +634,8 @@
                                                                             </telerik:RadLabel>
                                                                             <telerik:RadButton ID="btnAjouterRegleDemat"
                                                                                 runat="server" Visible="false"
-                                                                                AutoPostBack="false" OnClientClicking="openPopupFromBtn"
+                                                                                AutoPostBack="false"
+                                                                                OnClientClicking="openPopupFromBtn"
                                                                                 CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") & "~" & Eval("CodeFournisseur") %>'
                                                                                 ToolTip="Ajouter une correspondance LocPro"
                                                                                 ButtonType="LinkButton" Text="&#10133;"
@@ -876,7 +853,8 @@
                                                             </telerik:RadLabel>
 
                                                             <telerik:RadButton ID="btnAjouterRegle" runat="server"
-                                                                ButtonType="LinkButton" AutoPostBack="false" OnClientClicking="openPopupFromBtn"
+                                                                ButtonType="LinkButton" AutoPostBack="false"
+                                                                OnClientClicking="openPopupFromBtn"
                                                                 CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") & "~" & Eval("CodeFournisseur") %>'
                                                                 Visible="false"
                                                                 ToolTip="Créer une règle de correspondance"
@@ -922,56 +900,46 @@
                                     <ContentTemplate>
                                         <div
                                             style="padding: 20px; font-family: 'Segoe UI', Tahoma, sans-serif; line-height: 1.6; color: #333;">
-                                            <h3 style="margin-top: 0; color: #444;">Détails des statuts (Maileva)</h3>
+                                            <h3 style="margin-top: 0; color: #444;">Détails des statuts cycle de vie des
+                                                factures</h3>
                                             <p style="font-size: 14px; margin-bottom: 15px;">Ce diagramme explique ce
-                                                que chaque statut signifie et d'où proviennent les blocages éventuels :
+                                                que chaque statut cycle de vie signifie :
                                             </p>
                                             <ul style="list-style-type: none; padding: 0; font-size: 14px;">
                                                 <li
+                                                    style="margin-bottom: 12px; padding-left: 10px; border-left: 4px solid #6c757d;">
+                                                    <b style="color: #6c757d;">Mise à disposition :</b> La facture a été
+                                                    déposée sur la plateforme de Dématérialisation Partenaire. C'est le
+                                                    statut initial d'attente.
+                                                </li>
+                                                <li
                                                     style="margin-bottom: 12px; padding-left: 10px; border-left: 4px solid #007bff;">
-                                                    <b style="color: #007bff;">Prise en charge :</b> La facture est
-                                                    arrivée dans LocPro et est en cours de traitement. C'est le statut
-                                                    d'attente normal.
+                                                    <b style="color: #007bff;">Prise en charge :</b> L'acheteur prend
+                                                    connaissance de la facture et l'accepte pour traitement.
                                                 </li>
                                                 <li
                                                     style="margin-bottom: 12px; padding-left: 10px; border-left: 4px solid #dc3545;">
-                                                    <b style="color: #dc3545;">Suspendue :</b> <u>Uniquement si la faute
-                                                        vient du fournisseur</u>. Ce statut le notifie qu'il doit
-                                                    corriger la facture de son côté.<br /><i>Note : Ne sélectionnez pas
-                                                        ce statut pour un problème purement interne à LocPro (ex:
-                                                        FOURNISEUR INEXISTANT). Laissez-la en "Prise en charge".</i>
+                                                    <b style="color: #dc3545;">Suspendue :</b> Le traitement de la
+                                                    facture peut être suspendu lorsqu'une ou plusieurs pièces
+                                                    justificatives sont manquantes(en attente d'un avoir ou d'une
+                                                    correction).
                                                 </li>
                                                 <li
                                                     style="margin-bottom: 12px; padding-left: 10px; border-left: 4px solid #343a40;">
-                                                    <b style="color: #343a40;">Refusée :</b> La facture est
-                                                    définitivement rejetée . Le fournisseur sait qu'elle ne sera pas
-                                                    payée.
-                                                </li>
-                                                <li
-                                                    style="margin-bottom: 12px; padding-left: 10px; border-left: 4px solid #17a2b8;">
-                                                    <b style="color: #17a2b8;">Approuvée partiel. :</b> Intégrée, mais
-                                                    avec des réserves de la part du système.
+                                                    <b style="color: #343a40;">Refusée :</b> La facture est refusée
+                                                    manuellement pour un motif commercial ou de gestion. Elle reste
+                                                    visible car on attend la réception d'un
+                                                    avoir (et/ou d'une nouvelle facture) pour enfin la "Comptabiliser".
                                                 </li>
                                                 <li
                                                     style="margin-bottom: 12px; padding-left: 10px; border-left: 4px solid #28a745;">
-                                                    <b style="color: #28a745;">Paiement Transmis :</b> C'est le succès.
-                                                    Une fois qu'on clique sur "Ré-intégrer tout", et que la facture
-                                                    s'est intégrée
-                                                    dans LocPro sans erreur. Elle sera considérée comme payée et le
-                                                    fournisseur est notifié que le paiement est
-                                                    acté.
-                                                </li>
-                                                <li
-                                                    style="margin-bottom: 12px; padding-left: 10px; border-left: 4px solid #fd7e14;">
-                                                    <b style="color: #fd7e14;">En litige :</b> Désaccord commercial avec
-                                                    le fournisseur (ex: quantité ou montant incorrect). La facture n'est
-                                                    pas intégrée.
+                                                    <b style="color: #28a745;">Approuvée :</b> La facture est traitée
+                                                    totalement par l'acheteur. Le paiement est validé
                                                 </li>
                                             </ul>
                                         </div>
                                     </ContentTemplate>
                                 </telerik:RadWindow>
-
 
                                 <telerik:RadCodeBlock runat="server">
                                     <script>
@@ -983,7 +951,7 @@
                                             var refFour = argArr[2] || "";
                                             var libelle = argArr[3] || "";
                                             var codeFour = argArr[4] || "";
-                                            
+
                                             // Détecter la grille active pour que la popup sache quoi rafraîchir
                                             var gridID = "";
                                             var gridDemat = $find("<%= rgFacturesDemat.ClientID %>");
@@ -993,26 +961,26 @@
                                             } else if (gridHisto && gridHisto.get_element().offsetHeight > 0) {
                                                 gridID = "<%= rgFacturesDematHistorique.ClientID %>";
                                             }
-                                            
+
                                             var url = "FormulaireCorrespondancePopup.aspx?" +
-                                                      "codeFour=" + encodeURIComponent(codeFour) +
-                                                      "&refFour=" + encodeURIComponent(refFour) +
-                                                      "&libelle=" + encodeURIComponent(libelle) +
-                                                      "&numOR=" + encodeURIComponent(numOR) +
-                                                      "&numFac=" + encodeURIComponent(numFacture) +
-                                                      "&gridID=" + encodeURIComponent(gridID);
-                                                      
+                                                "codeFour=" + encodeURIComponent(codeFour) +
+                                                "&refFour=" + encodeURIComponent(refFour) +
+                                                "&libelle=" + encodeURIComponent(libelle) +
+                                                "&numOR=" + encodeURIComponent(numOR) +
+                                                "&numFac=" + encodeURIComponent(numFacture) +
+                                                "&gridID=" + encodeURIComponent(gridID);
+
                                             var oWnd = $find("<%= rwFormulaireCorrespondance.ClientID %>");
                                             if (oWnd) {
                                                 // Sauvegarde de la position pour bloquer le saut vers le bas
                                                 var y = window.scrollY || document.documentElement.scrollTop;
                                                 var x = window.scrollX || document.documentElement.scrollLeft;
-                                                
+
                                                 oWnd.setUrl(url);
                                                 oWnd.show();
-                                                
+
                                                 // Restauration immédiate après le focus auto de Telerik
-                                                setTimeout(function() { window.scrollTo(x, y); }, 10);
+                                                setTimeout(function () { window.scrollTo(x, y); }, 10);
                                             }
                                         }
 
