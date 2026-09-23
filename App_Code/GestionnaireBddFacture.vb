@@ -51,6 +51,39 @@ Public Class GestionnaireBddFacture
         End Using
     End Function
 
+    Public Shared Function RechercherFournisseurParSiretOuSiren(siret As String, siren As String) As DataTable
+        Dim siretClean As String = siret.Trim().Replace(" ", "")
+        Dim sirenClean As String = siren.Trim().Replace(" ", "")
+        Dim dt As DataTable = Nothing
+        Dim sql As String = ""
+        
+        Using acd As New AccesDonnees()
+            ' 1. Chercher dans le champ SIRET (F020SIRET) avec le vrai SIRET
+            If Not String.IsNullOrEmpty(siretClean) Then
+                sql = "SELECT F050TIERS.F050KY, F050TIERS.F050NOM FROM F050TIERS INNER JOIN F020ADR ON F050TIERS.K050020ADR = F020ADR.F020KY WHERE F020ADR.F020SIRET = '" & siretClean & "';"
+                dt = acd.creation_datatable(sql, BaseDeDonneesLP)
+            End If
+            
+            If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then Return dt
+            
+            ' 2. Chercher dans le champ SIRET (F020SIRET) avec le SIREN (au cas où il a été saisi dans le champ SIRET)
+            If Not String.IsNullOrEmpty(sirenClean) Then
+                sql = "SELECT F050TIERS.F050KY, F050TIERS.F050NOM FROM F050TIERS INNER JOIN F020ADR ON F050TIERS.K050020ADR = F020ADR.F020KY WHERE F020ADR.F020SIRET = '" & sirenClean & "';"
+                dt = acd.creation_datatable(sql, BaseDeDonneesLP)
+            End If
+            
+            If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then Return dt
+            
+            ' 3. Chercher dans le champ SIREN (F050SIREN) avec le SIREN
+            If Not String.IsNullOrEmpty(sirenClean) Then
+                sql = "SELECT F050KY, F050NOM FROM F050TIERS WHERE F050SIREN = '" & sirenClean & "';"
+                dt = acd.creation_datatable(sql, BaseDeDonneesLP)
+            End If
+            
+            Return dt
+        End Using
+    End Function
+
 
     Public Shared Function GetRegleCorrespondance(codeFournisseur As String, codePresta As String) As JObject
         Dim sql As String = "SELECT RegleLP FROM CorrespondancePrestaFournisseur WHERE CodeFournisseur = '" & codeFournisseur & "'AND Actif = 1 AND CodePrestaFournisseur = '" & codePresta & "';"
@@ -785,12 +818,13 @@ Public Class GestionnaireBddFacture
             End Using
 
             If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then
-                ' Récupérer le code fournisseur LocPro à partir du SIREN
-                Dim siren As String = dt.Rows(0)("Siren").ToString()
+                ' Récupérer le code fournisseur LocPro à partir du SIRET ou SIREN
+                Dim siren As String = If(IsDBNull(dt.Rows(0)("Siren")), "", dt.Rows(0)("Siren").ToString())
+                Dim siret As String = If(IsDBNull(dt.Rows(0)("Siret_Vend")), "", dt.Rows(0)("Siret_Vend").ToString())
                 Dim codeFournisseur As String = ""
 
                 Try
-                    Dim dtFourn As DataTable = GestionnaireBddFacture.retournerFournisseurSiren(siren)
+                    Dim dtFourn As DataTable = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siret, siren)
                     If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
                         codeFournisseur = dtFourn.Rows(0)("F050KY").ToString().Trim()
                     End If

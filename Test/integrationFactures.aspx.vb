@@ -818,14 +818,19 @@ Partial Class integrationFactures
             If cellFournisseur IsNot Nothing Then
                 lblFournisseur = CType(cellFournisseur.FindControl("lblFournisseur"), Label)
             End If
+            
+            Dim lblCodeFournisseur As Label = Nothing
+            Dim cellCodeFournisseur As TableCell = Nothing
+            If item.OwnerTableView.Columns.FindByUniqueNameSafe("ColCodeFournisseur") IsNot Nothing Then
+                cellCodeFournisseur = item("ColCodeFournisseur")
+            End If
+            If cellCodeFournisseur IsNot Nothing Then
+                lblCodeFournisseur = CType(cellCodeFournisseur.FindControl("lblCodeFournisseur"), Label)
+            End If
 
             If txtSiren Is Nothing OrElse btnValiderSiren Is Nothing Then
                 Return
             End If
-
-            ' Par défaut on affiche toujours l'input et le bouton
-            txtSiren.Visible = True
-            btnValiderSiren.Visible = True
 
             Dim sirenBase As String = ""
             Dim siretBase As String = ""
@@ -839,53 +844,59 @@ Partial Class integrationFactures
                     If drv.Row.Table.Columns.Contains("Siret_Vend") AndAlso Not IsDBNull(drv("Siret_Vend")) Then
                         siretBase = drv("Siret_Vend").ToString().Replace(" ", "").Trim()
                     End If
-                    
-                    Dim isNumericSiren As Boolean = sirenBase.Length >= 9 AndAlso IsNumeric(sirenBase.Substring(0, 9))
-                    Dim isNumericSiret As Boolean = siretBase.Length >= 9 AndAlso IsNumeric(siretBase.Substring(0, 9))
-                    
-                    If String.IsNullOrEmpty(sirenBase) OrElse sirenBase.ToLower() = "null" OrElse Not isNumericSiren Then
-                        If Not String.IsNullOrEmpty(siretBase) AndAlso siretBase.ToLower() <> "null" AndAlso isNumericSiret Then
-                            sirenBase = siretBase
-                        End If
-                    End If
-
-                    If sirenBase.Length >= 9 Then
-                        sirenBase = sirenBase.Substring(0, 9)
-                    End If
                 End If
-                
-                txtSiren.Text = sirenBase
+            End If
+            
+            ' Prioriser le SIRET pour l'affichage
+            Dim valeurAffichage As String = siretBase
+            If String.IsNullOrEmpty(valeurAffichage) OrElse valeurAffichage.ToLower() = "null" Then
+                valeurAffichage = sirenBase
+            End If
+            
+            If String.IsNullOrEmpty(valeurAffichage) Then
+                txtSiren.Text = ""
             Else
-                txtSiren.Text = "NODATA"
+                txtSiren.Text = valeurAffichage
             End If
 
-            ' On vérifie si le fournisseur existe dans LocPro avec ce SIREN
+            ' On vérifie si le fournisseur existe dans LocPro avec les 3 requêtes (SIRET ou SIREN)
             Dim existeDansLocPro As Boolean = False
-            If Not String.IsNullOrEmpty(txtSiren.Text) AndAlso txtSiren.Text.Length >= 9 Then
-                Dim sirenRecherche As String = txtSiren.Text.Substring(0, 9)
-                Dim dtFourn = GestionnaireBddFacture.retournerFournisseurSiren(sirenRecherche)
+            Dim nomFournisseurLocPro As String = ""
+            Dim codeFournisseurLocPro As String = ""
+            
+            If Not String.IsNullOrEmpty(valeurAffichage) Then
+                Dim dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siretBase, sirenBase)
                 If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
                     existeDansLocPro = True
+                    codeFournisseurLocPro = dtFourn.Rows(0)("F050KY").ToString().Trim()
+                    nomFournisseurLocPro = dtFourn.Rows(0)("F050NOM").ToString().Trim()
                 End If
             End If
 
             Dim lblSirenText As Label = CType(item.FindControl("lblSirenText"), Label)
             
             If existeDansLocPro Then
-                ' Fournisseur trouvé : On affiche le SIREN en texte plat et on cache l'input
+                ' Fournisseur trouvé : On affiche le SIREN/SIRET en texte plat et on cache l'input
                 If lblSirenText IsNot Nothing Then
-                    lblSirenText.Text = sirenBase
+                    lblSirenText.Text = valeurAffichage
                     lblSirenText.Visible = True
                 End If
                 txtSiren.Visible = False
                 btnValiderSiren.Visible = False
                 
-                ' La colonne FOURNISSEUR (ColRaisonSocialeDemat) garde sa valeur normale (RaisonSociale)
+                ' La colonne NOM FOURNISSEUR affiche Nom Fournisseur Locpro
                 If lblFournisseur IsNot Nothing Then
+                    lblFournisseur.Text = nomFournisseurLocPro
                     lblFournisseur.Visible = True
                 End If
+                
+                ' La colonne CODE FRN affiche le Code Fournisseur Locpro
+                If lblCodeFournisseur IsNot Nothing Then
+                    lblCodeFournisseur.Text = codeFournisseurLocPro
+                    lblCodeFournisseur.Visible = True
+                End If
             Else
-                ' Fournisseur introuvable : On affiche l'input avec le SIREN dedans, et on VIDE le nom du fournisseur
+                ' Fournisseur introuvable : On affiche l'input avec le SIREN dedans, et on VIDE le nom et le code
                 If lblSirenText IsNot Nothing Then
                     lblSirenText.Visible = False
                 End If
@@ -897,10 +908,19 @@ Partial Class integrationFactures
                     lblFournisseur.Text = ""
                 End If
                 
+                If lblCodeFournisseur IsNot Nothing Then
+                    lblCodeFournisseur.Visible = False
+                    lblCodeFournisseur.Text = ""
+                End If
+                
                 ' Vider la cellule FOURNISSEUR elle-même si jamais le text est directement sur la cellule
                 Dim cellF As TableCell = item("ColRaisonSociale")
                 If cellF IsNot Nothing Then
                     cellF.Text = "&nbsp;"
+                End If
+                
+                If cellCodeFournisseur IsNot Nothing Then
+                    cellCodeFournisseur.Text = "&nbsp;"
                 End If
             End If
         Catch ex As Exception

@@ -1,14 +1,22 @@
-﻿<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
+<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
     MaintainScrollPositionOnPostback="true" Title="Intégration de Factures fournisseur"
     CodeFile="integrationFactures.aspx.vb" Inherits="integrationFactures" Culture="fr-FR" UICulture="fr-FR"
     CodePage="65001" %>
     <%@ Register TagPrefix="telerik" Namespace="Telerik.Web.UI" Assembly="Telerik.Web.UI" %>
         <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="Server">
             <style>
-                .RadGrid .rgRow>td, .RadGrid .rgAltRow>td, .RadGrid .rgEditRow>td, .RadGrid .rgFooter>td, .RadGrid .rgFilterRow>td, .RadGrid .rgHeader, .RadGrid .rgResizeCol, .RadGrid .rgGroupHeader td {
+                .RadGrid .rgRow>td,
+                .RadGrid .rgAltRow>td,
+                .RadGrid .rgEditRow>td,
+                .RadGrid .rgFooter>td,
+                .RadGrid .rgFilterRow>td,
+                .RadGrid .rgHeader,
+                .RadGrid .rgResizeCol,
+                .RadGrid .rgGroupHeader td {
                     padding-left: 5px !important;
                     padding-right: 8px !important;
                 }
+
                 .tooltip-cycle {
                     position: relative;
                     display: inline-block;
@@ -132,9 +140,7 @@
                                 <telerik:RadPageView ID="rpvInProgress" runat="server">
                                     <telerik:RadGrid ID="rgFacturesDemat" runat="server" AutoGenerateColumns="False"
                                         Width="100%" AllowPaging="True" PageSize="20" Skin="MetroTouch"
-                                        CssClass="factures-grid" OnNeedDataSource="rgFacturesDemat_NeedDataSource"
-                                        OnItemDataBound="rgFacturesDemat_ItemDataBound"
-                                        OnItemCommand="rgFacturesDemat_ItemCommand">
+                                        CssClass="factures-grid">
                                         <MasterTableView DataKeyNames="IdFacture" CommandItemDisplay="None"
                                             HierarchyLoadMode="Client" RetainExpandStateOnRebind="true">
                                             <Columns>
@@ -156,7 +162,17 @@
                                                     DataFormatString="{0:dd/MM/yyyy}" FilterControlWidth="80px"
                                                     HeaderStyle-Width="70px">
                                                 </telerik:GridBoundColumn>
-                                                <telerik:GridTemplateColumn HeaderText="FOURNISSEUR"
+                                                <telerik:GridTemplateColumn HeaderText="CODE FRN"
+                                                    UniqueName="ColCodeFournisseur" HeaderStyle-Width="100px">
+                                                    <ItemTemplate>
+                                                        <asp:Label ID="lblCodeFournisseur" runat="server"
+                                                            CssClass="label-fournisseur"
+                                                            Style="white-space: normal; line-height: 1.1; font-weight: bold;">
+                                                        </asp:Label>
+                                                    </ItemTemplate>
+                                                </telerik:GridTemplateColumn>
+
+                                                <telerik:GridTemplateColumn HeaderText="NOM FOURNISSEUR"
                                                     UniqueName="ColRaisonSociale" DataField="RaisonSociale"
                                                     SortExpression="RaisonSociale" HeaderStyle-Width="150px">
                                                     <ItemTemplate>
@@ -168,20 +184,23 @@
                                                     </ItemTemplate>
                                                 </telerik:GridTemplateColumn>
 
-                                                <telerik:GridTemplateColumn HeaderText="SIREN" UniqueName="Fournisseur"
-                                                    HeaderStyle-Width="120px">
+                                                <telerik:GridTemplateColumn HeaderText="SIREN / SIRET"
+                                                    UniqueName="Fournisseur" HeaderStyle-Width="120px">
                                                     <ItemTemplate>
                                                         <asp:Panel ID="pnlFournisseur" runat="server">
                                                             <div style="white-space: nowrap;">
-                                                                <asp:Label ID="lblSirenText" runat="server" Visible="false" Style="margin-right: 5px; font-weight: bold;"></asp:Label>
+                                                                <asp:Label ID="lblSirenText" runat="server"
+                                                                    Visible="false"
+                                                                    Style="margin-right: 5px; font-weight: bold;">
+                                                                </asp:Label>
                                                                 <asp:TextBox ID="txtSiret" runat="server" Visible="true"
-                                                                    MaxLength="9" CssClass="textbox-siret-custom"
-                                                                    Style="vertical-align: middle; width: 85px;"
-                                                                    placeholder="SIREN">
+                                                                    MaxLength="14" CssClass="textbox-siret-custom"
+                                                                    Style="vertical-align: middle; width: 110px;"
+                                                                    placeholder="SIREN/SIRET">
                                                                 </asp:TextBox>
                                                                 <telerik:RadButton ID="btnValiderSiret" runat="server"
                                                                     Visible="true" ButtonType="StandardButton"
-                                                                    ToolTip="Valider le SIREN"
+                                                                    ToolTip="Valider le SIREN / SIRET"
                                                                     CommandName="ValidateSiret"
                                                                     CommandArgument='<%# Eval("numOr") & "|" & Eval("NumFacture") %>'
                                                                     Style="vertical-align: middle; margin-left: 4px; "
@@ -336,8 +355,8 @@
                                                                             </telerik:RadLabel>
                                                                             <telerik:RadButton ID="btnAjouterRegleDemat"
                                                                                 runat="server" Visible="false"
-                                                                                CommandName="AjouterRegleLigne"
-                                                                                CommandArgument='<%# Eval("NumOR") & "|" & Eval("NumFacture") & "|" & Eval("CodePrestaFournisseur") & "|" & Eval("Descr") & "|" & Eval("CodeFournisseur") %>'
+                                                                                AutoPostBack="false" OnClientClicking="openPopupFromBtn"
+                                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") & "~" & Eval("CodeFournisseur") %>'
                                                                                 ToolTip="Ajouter une correspondance LocPro"
                                                                                 ButtonType="LinkButton" Text="&#10133;"
                                                                                 CssClass="btn-ajouter-regle-mini">
@@ -436,10 +455,7 @@
                                     </div>
                                     <telerik:RadGrid ID="rgFacturesDematHistorique" runat="server"
                                         AutoGenerateColumns="False" AllowPaging="True" PageSize="20" Skin="MetroTouch"
-                                        CssClass="factures-grid"
-                                        OnNeedDataSource="rgFacturesDematHistorique_NeedDataSource"
-                                        OnItemDataBound="rgFacturesDemat_ItemDataBound"
-                                        OnItemCommand="rgFacturesDemat_ItemCommand">
+                                        CssClass="factures-grid">
                                         <MasterTableView DataKeyNames="IdFacture" CommandItemDisplay="None"
                                             HierarchyLoadMode="Client" RetainExpandStateOnRebind="true">
                                             <Columns>
@@ -478,7 +494,10 @@
                                                     <ItemTemplate>
                                                         <asp:Panel ID="pnlFournisseurDemat" runat="server">
                                                             <div style="white-space: nowrap;">
-                                                                <asp:Label ID="lblSirenTextDemat" runat="server" Visible="false" Style="margin-right: 5px; font-weight: bold;"></asp:Label>
+                                                                <asp:Label ID="lblSirenTextDemat" runat="server"
+                                                                    Visible="false"
+                                                                    Style="margin-right: 5px; font-weight: bold;">
+                                                                </asp:Label>
                                                                 <asp:TextBox ID="txtSirenDemat" runat="server"
                                                                     Visible="true" MaxLength="9"
                                                                     CssClass="textbox-siret-custom"
@@ -639,8 +658,8 @@
                                                                             </telerik:RadLabel>
                                                                             <telerik:RadButton ID="btnAjouterRegleDemat"
                                                                                 runat="server" Visible="false"
-                                                                                CommandName="AjouterRegleLigne"
-                                                                                CommandArgument='<%# Eval("NumOR") & "|" & Eval("NumFacture") & "|" & Eval("CodePrestaFournisseur") & "|" & Eval("Descr") & "|" & Eval("CodeFournisseur") %>'
+                                                                                AutoPostBack="false" OnClientClicking="openPopupFromBtn"
+                                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") & "~" & Eval("CodeFournisseur") %>'
                                                                                 ToolTip="Ajouter une correspondance LocPro"
                                                                                 ButtonType="LinkButton" Text="&#10133;"
                                                                                 CssClass="btn-ajouter-regle-mini">
@@ -705,6 +724,13 @@
                             <h1>Intégration de Factures fournisseur</h1>
                             <telerik:RadAjaxLoadingPanel runat="server" ID="LoadingPanel"></telerik:RadAjaxLoadingPanel>
                             <telerik:RadAjaxPanel ID="RadAjaxPanel1" LoadingPanelID="LoadingPanel" runat="server">
+                                <!-- RadWindow déplacé en haut pour éviter le saut de page vers le bas lors du focus natif du navigateur -->
+                                <telerik:RadWindow ID="rwFormulaireCorrespondance" runat="server"
+                                    Title="Ajouter une correspondance prestation" Width="1050px" Height="800px"
+                                    Modal="true" Behaviors="Close,Move" VisibleStatusbar="false" Skin="MetroTouch"
+                                    KeepInScreenBounds="true" CenterIfModal="true" ShowContentDuringLoad="false">
+                                </telerik:RadWindow>
+
                                 <p>Veuillez téléverser les pdfs des factures à intégrer.
                                 </p>
                                 <telerik:RadAsyncUpload runat="server" ID="rtb_repertoire"
@@ -850,8 +876,8 @@
                                                             </telerik:RadLabel>
 
                                                             <telerik:RadButton ID="btnAjouterRegle" runat="server"
-                                                                ButtonType="LinkButton" CommandName="AjouterRegleLigne"
-                                                                CommandArgument='<%# Eval("NumOR") & "|" & Eval("NumFacture") & "|" & Eval("CodePrestaFournisseur") & "|" & Eval("Descr") %>'
+                                                                ButtonType="LinkButton" AutoPostBack="false" OnClientClicking="openPopupFromBtn"
+                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") & "~" & Eval("CodeFournisseur") %>'
                                                                 Visible="false"
                                                                 ToolTip="Créer une règle de correspondance"
                                                                 Text="&#10133;" CssClass="btn-ajouter-regle-mini">
@@ -946,32 +972,54 @@
                                     </ContentTemplate>
                                 </telerik:RadWindow>
 
-                                <!-- RadWindow pour le formulaire de correspondance -->
-                                <telerik:RadWindow ID="rwFormulaireCorrespondance" runat="server"
-                                    Title="Ajouter une correspondance prestation" Width="1050px" Height="800px"
-                                    Modal="true" Behaviors="Close,Move" VisibleStatusbar="false" Skin="MetroTouch"
-                                    OnClientClose="refreshRadGrid">
-                                </telerik:RadWindow>
+
                                 <telerik:RadCodeBlock runat="server">
                                     <script>
+                                        function openPopupFromBtn(sender, args) {
+                                            var argsStr = sender.get_commandArgument();
+                                            var argArr = argsStr.split("~");
+                                            var numOR = argArr[0] || "";
+                                            var numFacture = argArr[1] || "";
+                                            var refFour = argArr[2] || "";
+                                            var libelle = argArr[3] || "";
+                                            var codeFour = argArr[4] || "";
+                                            
+                                            // Détecter la grille active pour que la popup sache quoi rafraîchir
+                                            var gridID = "";
+                                            var gridDemat = $find("<%= rgFacturesDemat.ClientID %>");
+                                            var gridHisto = $find("<%= rgFacturesDematHistorique.ClientID %>");
+                                            if (gridDemat && gridDemat.get_element().offsetHeight > 0) {
+                                                gridID = "<%= rgFacturesDemat.ClientID %>";
+                                            } else if (gridHisto && gridHisto.get_element().offsetHeight > 0) {
+                                                gridID = "<%= rgFacturesDematHistorique.ClientID %>";
+                                            }
+                                            
+                                            var url = "FormulaireCorrespondancePopup.aspx?" +
+                                                      "codeFour=" + encodeURIComponent(codeFour) +
+                                                      "&refFour=" + encodeURIComponent(refFour) +
+                                                      "&libelle=" + encodeURIComponent(libelle) +
+                                                      "&numOR=" + encodeURIComponent(numOR) +
+                                                      "&numFac=" + encodeURIComponent(numFacture) +
+                                                      "&gridID=" + encodeURIComponent(gridID);
+                                                      
+                                            var oWnd = $find("<%= rwFormulaireCorrespondance.ClientID %>");
+                                            if (oWnd) {
+                                                // Sauvegarde de la position pour bloquer le saut vers le bas
+                                                var y = window.scrollY || document.documentElement.scrollTop;
+                                                var x = window.scrollX || document.documentElement.scrollLeft;
+                                                
+                                                oWnd.setUrl(url);
+                                                oWnd.show();
+                                                
+                                                // Restauration immédiate après le focus auto de Telerik
+                                                setTimeout(function() { window.scrollTo(x, y); }, 10);
+                                            }
+                                        }
+
                                         function showInfoStatus() {
                                             var win = $find("<%= rwInfoStatus.ClientID %>");
                                             if (win) {
                                                 win.show();
-                                            }
-                                        }
-
-                                        function refreshRadGrid() {
-                                            var grid = $find("<%= rgHistoriqueFactures.ClientID %>");
-                                            if (grid) {
-                                                console.log("Rafraîchissement du RadGrid (Historique)...");
-                                                grid.get_masterTableView().rebind();
-                                            }
-
-                                            var gridDemat = $find("<%= rgFacturesDemat.ClientID %>");
-                                            if (gridDemat) {
-                                                console.log("Rafraîchissement du RadGrid (Demat)...");
-                                                gridDemat.get_masterTableView().rebind();
                                             }
                                         }
                                     </script>
