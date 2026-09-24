@@ -1,4 +1,4 @@
-﻿<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
+<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
     MaintainScrollPositionOnPostback="true" Title="Intégration de Factures fournisseur"
     CodeFile="integrationFactures.aspx.vb" Inherits="integrationFactures" Culture="fr-FR" UICulture="fr-FR"
     CodePage="65001" %>
@@ -133,6 +133,15 @@
 
                             <telerik:RadMultiPage ID="rmpFacturesDemat" runat="server" SelectedIndex="0">
                                 <telerik:RadPageView ID="rpvInProgress" runat="server">
+                                    <asp:HiddenField ID="hfActionToken" runat="server" />
+                                    <script type="text/javascript">
+                                        function onComptabiliserClicking(sender, args) {
+                                            var hf = document.getElementById('<%= hfActionToken.ClientID %>');
+                                            if (hf) {
+                                                hf.value = new Date().getTime().toString();
+                                            }
+                                        }
+                                    </script>
                                     <telerik:RadGrid ID="rgFacturesDemat" runat="server" AutoGenerateColumns="False"
                                         Width="100%" AllowPaging="True" PageSize="20" Skin="MetroTouch"
                                         CssClass="factures-grid" Style="font-size: 13px;">
@@ -188,16 +197,18 @@
                                                                     Visible="false"
                                                                     Style="margin-right: 5px; font-weight: bold;">
                                                                 </asp:Label>
-                                                                <asp:TextBox ID="txtSiret" runat="server" Visible="true"
-                                                                    MaxLength="14" CssClass="textbox-siret-custom"
+                                                                <asp:TextBox ID="txtSirenDemat" runat="server"
+                                                                    Visible="true" MaxLength="14"
+                                                                    CssClass="textbox-siret-custom"
                                                                     Style="vertical-align: middle; width: 110px;"
                                                                     placeholder="SIREN/SIRET">
                                                                 </asp:TextBox>
-                                                                <telerik:RadButton ID="btnValiderSiret" runat="server"
-                                                                    Visible="true" ButtonType="StandardButton"
+                                                                <telerik:RadButton ID="btnValiderSirenDemat"
+                                                                    runat="server" Visible="true"
+                                                                    ButtonType="StandardButton"
                                                                     ToolTip="Valider le SIREN / SIRET"
-                                                                    CommandName="ValidateSiret"
-                                                                    CommandArgument='<%# Eval("numOr") & "|" & Eval("NumFacture") %>'
+                                                                    CommandName="ValidateSiren"
+                                                                    CommandArgument='<%# Eval("IdFacture") %>'
                                                                     Style="vertical-align: middle; margin-left: 4px; "
                                                                     CssClass="btn-valider">
                                                                     <Icon PrimaryIconCssClass="rbOk" />
@@ -296,11 +307,13 @@
                                                         <telerik:RadButton ID="btnComptabiliser" runat="server"
                                                             Text="Comptabiliser" CommandName="Comptabiliser"
                                                             CommandArgument='<%# Eval("IdFacture") %>' Skin="MetroTouch"
-                                                            ButtonType="StandardButton" CssClass="btn-success">
+                                                            ButtonType="StandardButton" CssClass="btn-success"
+                                                            OnClientClicking="onComptabiliserClicking">
                                                         </telerik:RadButton>
                                                     </ItemTemplate>
                                                 </telerik:GridTemplateColumn>
-                                                <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message" HeaderStyle-Width="200px">
+                                                <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message"
+                                                    HeaderStyle-Width="200px">
                                                     <ItemTemplate>
                                                         <asp:Label ID="lblMessageDemat" runat="server"
                                                             Text='<%# Eval("Message") %>'
@@ -366,7 +379,7 @@
                                                                                 runat="server" Visible="false"
                                                                                 AutoPostBack="false"
                                                                                 OnClientClicking="openPopupFromBtn"
-                                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") & "~" & Eval("CodeFournisseur") %>'
+                                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") %>'
                                                                                 ToolTip="Ajouter une correspondance LocPro"
                                                                                 ButtonType="LinkButton" Text="&#10133;"
                                                                                 CssClass="btn-ajouter-regle-mini">
@@ -518,10 +531,10 @@
                                                                     Style="margin-right: 5px; font-weight: bold;">
                                                                 </asp:Label>
                                                                 <asp:TextBox ID="txtSirenDemat" runat="server"
-                                                                    Visible="true" MaxLength="9"
+                                                                    Visible="true" MaxLength="14"
                                                                     CssClass="textbox-siret-custom"
-                                                                    Style="vertical-align: middle; width: 85px;"
-                                                                    placeholder="SIREN">
+                                                                    Style="vertical-align: middle; width: 100px;"
+                                                                    placeholder="SIREN/SIRET">
                                                                 </asp:TextBox>
                                                                 <telerik:RadButton ID="btnValiderSirenDemat"
                                                                     runat="server" Visible="true"
@@ -570,7 +583,8 @@
                                                     </ItemTemplate>
                                                 </telerik:GridTemplateColumn>
 
-                                                <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message" HeaderStyle-Width="200px">
+                                                <telerik:GridTemplateColumn HeaderText="Message" UniqueName="Message"
+                                                    HeaderStyle-Width="200px">
                                                     <ItemTemplate>
                                                         <asp:Label ID="lblMessageDemat" runat="server"
                                                             Text='<%# Eval("Message") %>'
@@ -636,7 +650,7 @@
                                                                                 runat="server" Visible="false"
                                                                                 AutoPostBack="false"
                                                                                 OnClientClicking="openPopupFromBtn"
-                                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") & "~" & Eval("CodeFournisseur") %>'
+                                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") %>'
                                                                                 ToolTip="Ajouter une correspondance LocPro"
                                                                                 ButtonType="LinkButton" Text="&#10133;"
                                                                                 CssClass="btn-ajouter-regle-mini">
@@ -855,7 +869,7 @@
                                                             <telerik:RadButton ID="btnAjouterRegle" runat="server"
                                                                 ButtonType="LinkButton" AutoPostBack="false"
                                                                 OnClientClicking="openPopupFromBtn"
-                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") & "~" & Eval("CodeFournisseur") %>'
+                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") %>'
                                                                 Visible="false"
                                                                 ToolTip="Créer une règle de correspondance"
                                                                 Text="&#10133;" CssClass="btn-ajouter-regle-mini">
@@ -893,6 +907,19 @@
 
                                 <br />
 
+
+                                <telerik:RadWindow ID="rwIntegrationResult" runat="server"
+                                    Title="Résultat de l'intégration" Width="500px" Height="250px" Modal="true"
+                                    Behaviors="Close,Move" VisibleStatusbar="false" Skin="MetroTouch"
+                                    KeepInScreenBounds="true" CenterIfModal="true">
+                                    <ContentTemplate>
+                                        <div
+                                            style="padding: 30px; text-align: center; font-family: 'Segoe UI', Tahoma, sans-serif;">
+                                            <asp:Label ID="lblIntegrationResult" runat="server" Font-Size="16px"
+                                                Font-Bold="true"></asp:Label>
+                                        </div>
+                                    </ContentTemplate>
+                                </telerik:RadWindow>
 
                                 <telerik:RadWindow ID="rwInfoStatus" runat="server"
                                     Title="Processus et cycle de vie des factures" Width="600px" Height="450px"
@@ -981,6 +1008,27 @@
 
                                                 // Restauration immédiate après le focus auto de Telerik
                                                 setTimeout(function () { window.scrollTo(x, y); }, 10);
+                                            }
+                                        }
+
+
+                                        function closeIntegrationResult(sender, args) {
+                                            var win = $find("<%= rwIntegrationResult.ClientID %>");
+                                            if (win) win.close();
+                                        }
+
+                                        function showIntegrationResult(isSuccess, message) {
+                                            var lbl = document.getElementById("<%= lblIntegrationResult.ClientID %>");
+                                            if (lbl) {
+                                                if (isSuccess) {
+                                                    lbl.innerHTML = "<span style='color: #4CAF50;'>" + message + "</span>";
+                                                } else {
+                                                    lbl.innerHTML = "<span style='color: #F44336;'>" + message + "</span>";
+                                                }
+                                            }
+                                            var win = $find("<%= rwIntegrationResult.ClientID %>");
+                                            if (win) {
+                                                win.show();
                                             }
                                         }
 

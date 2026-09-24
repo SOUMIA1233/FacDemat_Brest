@@ -1,4 +1,4 @@
-Imports System
+﻿Imports System
 Imports System.Collections.Generic
 Imports System.Data
 Imports System.Threading.Tasks
@@ -313,36 +313,43 @@ Public Class ServiceReintegration
     End Function
 
     ''' <summary>
-    ''' Ré-intègre toutes les factures dématérialisées EN_ATTENTE dans LocPro
+    ''' Vérifie l'état de toutes les factures dématérialisées (siret/prestations) sans les intégrer
     ''' </summary>
-    Public Shared Function ReintegrerFacturesDematParLot() As ResultatLot
+    Public Shared Function VerifierFacturesDematParLot() As ResultatLot
         Dim resultat As New ResultatLot()
 
         Try
             GestionnaireLog.Info("DÉBUT TRAITEMENT PAR LOT DEMAT")
 
-            ' Récupérer toutes les factures EN_ATTENTE
-            Dim dtFactures As DataTable = GestionnaireBddFacture.ObtenirFacturesDematEnAttente()
+            ' Récupérer toutes les factures à vérifier
+            Dim dtFactures As DataTable = GestionnaireBddFacture.ObtenirFacturesDematAVerifier()
             If dtFactures Is Nothing OrElse dtFactures.Rows.Count = 0 Then
-                GestionnaireLog.Info("Aucune facture Demat EN_ATTENTE à traiter")
+                GestionnaireLog.Info("Aucune facture Demat à traiter")
                 Return resultat
             End If
 
-            GestionnaireLog.Info(dtFactures.Rows.Count & " facture(s) Demat EN_ATTENTE à traiter")
+            GestionnaireLog.Info(dtFactures.Rows.Count & " facture(s) Demat à vérifier/valider")
 
             ' Traiter chaque facture
             For Each row As DataRow In dtFactures.Rows
                 Dim idFacture As String = row("IdFacture").ToString().Trim()
                 Dim numFacture As String = row("NumeroFacture").ToString().Trim()
                 Try
-                    ' Ré-intégrer la facture
-                    Dim resultatFacture As ResultatReintegration = ReintegrerFactureDemat(row)
+                    ' Au lieu de réintégrer directement, on valide la facture
+                    Dim siret As String = ""
+                    If row.Table.Columns.Contains("Siret_Vend") AndAlso Not IsDBNull(row("Siret_Vend")) AndAlso Not String.IsNullOrWhiteSpace(row("Siret_Vend").ToString()) Then
+                        siret = row("Siret_Vend").ToString().Trim()
+                    ElseIf row.Table.Columns.Contains("Siren_Vend") AndAlso Not IsDBNull(row("Siren_Vend")) AndAlso Not String.IsNullOrWhiteSpace(row("Siren_Vend").ToString()) Then
+                        siret = row("Siren_Vend").ToString().Trim()
+                    End If
+                    Dim errMsg As String = ""
+                    Dim estValide As Boolean = RetraiterFactureSiretDemat(idFacture, siret, errMsg)
 
-                    If resultatFacture.Succes Then
+                    If estValide Then
                         resultat.NbSucces += 1
                     Else
                         resultat.NbEchecs += 1
-                        resultat.DetailsEchecs.Add(numFacture & " : " & resultatFacture.Message)
+                        resultat.DetailsEchecs.Add(numFacture & " : " & errMsg)
                     End If
                 Catch ex As Exception
                     resultat.NbEchecs += 1
@@ -363,11 +370,16 @@ Public Class ServiceReintegration
     ''' <summary>
     ''' Ré-intègre une facture dématérialisée dans LocPro
     ''' </summary>
-    Private Shared Function ReintegrerFactureDemat(factureRow As DataRow) As ResultatReintegration
+    Public Shared Function ReintegrerFactureDemat(factureRow As DataRow) As ResultatReintegration
         Dim resultat As New ResultatReintegration()
         Dim idFacture As String = factureRow("IdFacture").ToString().Trim()
         Dim numFacture As String = factureRow("NumeroFacture").ToString().Trim()
-        Dim siret As String = factureRow("NumeroTVA_Vend").ToString().Trim()
+        Dim siret As String = ""
+        If factureRow.Table.Columns.Contains("Siret_Vend") AndAlso Not IsDBNull(factureRow("Siret_Vend")) AndAlso Not String.IsNullOrWhiteSpace(factureRow("Siret_Vend").ToString()) Then
+            siret = factureRow("Siret_Vend").ToString().Trim()
+        ElseIf factureRow.Table.Columns.Contains("Siren_Vend") AndAlso Not IsDBNull(factureRow("Siren_Vend")) AndAlso Not String.IsNullOrWhiteSpace(factureRow("Siren_Vend").ToString()) Then
+            siret = factureRow("Siren_Vend").ToString().Trim()
+        End If
 
         resultat.NumFacture = numFacture
 
@@ -391,20 +403,8 @@ Public Class ServiceReintegration
             Dim nbPrestations As Integer = CreerPrestationsLocProDemat(pkFacLocPro, idFacture, infosFour.CodeFournisseur)
             GestionnaireLog.Info("Facture Demat " & numFacture & " - " & nbPrestations & " prestation(s) créée(s)")
 
-            ' ÉTAPE 3 : Mettre à jour le statut en SUCCES et informer Maileva
+            ' ÉTAPE 3 : Mettre à jour le statut en SUCCES
             GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "SUCCES", "Intégration réussie dans Locpro")
-            GestionnaireBddFacture.UpdateStatutCycleDeVie(idFacture, "PAIEMENT_TRANSMIS")
-
-            ' Appeler Maileva
-            Try
-                Dim mailevaService As New Services.MailevaApiService()
-                Task.Run(Function() mailevaService.MettreAJourStatutCycleDeVieAsync(idFacture, "PAIEMENT_TRANSMIS")).Wait()
-            Catch ignoreEx As AggregateException
-                Dim innerMsg As String = String.Join(" | ", ignoreEx.InnerExceptions.Select(Function(e) e.Message))
-                GestionnaireLog.Error("Impossible de mettre à jour le statut Maileva : " & innerMsg)
-            Catch ignoreEx As Exception
-                GestionnaireLog.Error("Impossible de mettre à jour le statut Maileva : " & ignoreEx.Message)
-            End Try
 
             GestionnaireLog.Info("Facture Demat " & numFacture & " - Statut: SUCCES")
 
@@ -415,13 +415,6 @@ Public Class ServiceReintegration
             Dim msgErreur As String = "Erreur API LocPro : " & ex.Message
             GestionnaireLog.Error("Facture Demat " & numFacture & " - " & msgErreur)
             GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "ERROR", msgErreur)
-            GestionnaireBddFacture.UpdateStatutCycleDeVie(idFacture, "IN_PROCESS")
-
-            Try
-                Dim mailevaService As New Services.MailevaApiService()
-                Task.Run(Function() mailevaService.MettreAJourStatutCycleDeVieAsync(idFacture, "IN_PROCESS")).Wait()
-            Catch ignoreEx As Exception
-            End Try
 
             resultat.Succes = False
             resultat.Message = msgErreur
@@ -429,13 +422,6 @@ Public Class ServiceReintegration
             Dim msgErreur As String = "Erreur : " & ex.Message
             GestionnaireLog.Error("Facture Demat " & numFacture & " - " & msgErreur)
             GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "ERROR", msgErreur)
-            GestionnaireBddFacture.UpdateStatutCycleDeVie(idFacture, "IN_PROCESS")
-
-            Try
-                Dim mailevaService As New Services.MailevaApiService()
-                Task.Run(Function() mailevaService.MettreAJourStatutCycleDeVieAsync(idFacture, "IN_PROCESS")).Wait()
-            Catch ignoreEx As Exception
-            End Try
 
             resultat.Succes = False
             resultat.Message = msgErreur
@@ -600,7 +586,12 @@ Public Class ServiceReintegration
                 Dim dtDemat As DataTable = GestionnaireBddFacture.GetFacturesDematNonMatcheesAvecPrestation(codePrestaFournisseur)
                 For Each row As DataRow In dtDemat.Rows
                     Dim idFacture As String = row("IdFacture").ToString()
-                    Dim siret As String = row("NumeroTVA_Vend").ToString()
+                    Dim siret As String = ""
+                    If row.Table.Columns.Contains("Siret_Vend") AndAlso Not IsDBNull(row("Siret_Vend")) AndAlso Not String.IsNullOrWhiteSpace(row("Siret_Vend").ToString()) Then
+                        siret = row("Siret_Vend").ToString().Trim()
+                    ElseIf row.Table.Columns.Contains("Siren_Vend") AndAlso Not IsDBNull(row("Siren_Vend")) AndAlso Not String.IsNullOrWhiteSpace(row("Siren_Vend").ToString()) Then
+                        siret = row("Siren_Vend").ToString().Trim()
+                    End If
 
                     ' On vérifie si ce SIRET correspond bien au codeFournisseur de la règle qu'on vient de créer
                     Dim dtFour As DataTable = GestionnaireBddFacture.retournerFournisseur(siret)
@@ -821,21 +812,29 @@ Public Class ServiceReintegration
         Try
             GestionnaireLog.Info("RE-TRAITEMENT SIRET DEMAT : " & idFacture & " - " & siret)
 
-            Dim infosFour As InfosFournisseur = ServiceOR.retournerInfosFournisseur(siret)
+            Dim codeFournisseur As String = ""
+            Dim raisonSociale As String = ""
+            
+            Dim dtFourn As DataTable = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siret, "")
+            If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
+                codeFournisseur = dtFourn.Rows(0)("F050KY").ToString().Trim()
+                If dtFourn.Columns.Contains("F050NOM") Then
+                    raisonSociale = dtFourn.Rows(0)("F050NOM").ToString().Trim()
+                End If
+            End If
 
-            If infosFour Is Nothing Then
-                GestionnaireLog.Warn("Fournisseur introuvable avec SIRET : " & siret)
-                GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "FOURNISSEUR_INCONNU", "Le SIRET saisi est introuvable dans la base fournisseur (LocPro).")
-                GestionnaireBddFacture.UpdateStatutCycleDeVie(idFacture, "IN_PROCESS")
-                errorMessage = "Le SIRET saisi est introuvable dans la base fournisseur (LocPro)."
+            If String.IsNullOrEmpty(codeFournisseur) Then
+                GestionnaireLog.Warn("Fournisseur introuvable avec SIREN/SIRET : " & siret)
+                GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "FOURNISSEUR_INTROUVABLE", "Le SIREN/SIRET saisi est introuvable dans la base LocPro.")
+                errorMessage = "Le SIREN/SIRET saisi est introuvable dans la base LocPro."
                 Return False
             End If
 
-            GestionnaireLog.Info("Fournisseur trouve : " & infosFour.CodeFournisseur)
+            GestionnaireLog.Info("Fournisseur trouve : " & codeFournisseur)
 
             ' Mise à jour de la raison sociale pour l'affichage IHM
-            If Not String.IsNullOrEmpty(infosFour.RaisonSociale) Then
-                GestionnaireBddFacture.MettreAJourRaisonSocialeDemat(idFacture, infosFour.RaisonSociale)
+            If Not String.IsNullOrEmpty(raisonSociale) Then
+                GestionnaireBddFacture.MettreAJourRaisonSocialeDemat(idFacture, raisonSociale)
             End If
 
             Dim lignes As DataTable = GestionnaireBddFacture.getDematFacturesLignes(idFacture)
@@ -843,7 +842,6 @@ Public Class ServiceReintegration
             If lignes Is Nothing OrElse lignes.Rows.Count = 0 Then
                 GestionnaireLog.Warn("Aucune ligne de facture pour : " & idFacture)
                 GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "ERROR", "La facture ne contient aucune ligne de prestation.")
-                GestionnaireBddFacture.UpdateStatutCycleDeVie(idFacture, "IN_PROCESS")
                 errorMessage = "La facture ne contient aucune ligne de prestation."
                 Return False
             End If
@@ -853,8 +851,8 @@ Public Class ServiceReintegration
             For Each ligne As DataRow In lignes.Rows
                 Dim codePrestaFournisseur As String = ligne("CodePrestaFournisseur").ToString().Trim()
 
-                If GestionnaireBddFacture.RegleCorrespondanceExiste(infosFour.CodeFournisseur, codePrestaFournisseur) Then
-                    Dim regleJObject As JObject = GestionnaireBddFacture.GetRegleCorrespondance(infosFour.CodeFournisseur, codePrestaFournisseur)
+                If GestionnaireBddFacture.RegleCorrespondanceExiste(codeFournisseur, codePrestaFournisseur) Then
+                    Dim regleJObject As JObject = GestionnaireBddFacture.GetRegleCorrespondance(codeFournisseur, codePrestaFournisseur)
                     Dim jPrestations As JArray = CType(regleJObject("prestations"), JArray)
                     Dim codesLocPro As New List(Of String)()
 
@@ -874,36 +872,18 @@ Public Class ServiceReintegration
             Next
 
             If toutesLignesMatchees Then
-                GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "EN_ATTENTE", "")
-                GestionnaireBddFacture.UpdateStatutCycleDeVie(idFacture, "IN_PROCESS")
-                Try
-                    Dim mailevaService As New Services.MailevaApiService()
-                    Task.Run(Function() mailevaService.MettreAJourStatutCycleDeVieAsync(idFacture, "IN_PROCESS")).Wait()
-                Catch ignoreEx As Exception
-                End Try
+                GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "A_INTEGRER", "La facture est prête à être intégrée dans Locpro, veuillez cliquer sur comptabiliser pour le faire.")
                 Return True
             Else
                 GestionnaireLog.Warn("SIRET validé, mais certaines prestations n'ont pas de correspondance LocPro.")
                 GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "PRESTATION_INEXISTANTE", "Certaines prestations n'ont pas de correspondance LocPro")
-                GestionnaireBddFacture.UpdateStatutCycleDeVie(idFacture, "IN_PROCESS")
-                Try
-                    Dim mailevaService As New Services.MailevaApiService()
-                    Task.Run(Function() mailevaService.MettreAJourStatutCycleDeVieAsync(idFacture, "IN_PROCESS")).Wait()
-                Catch ignoreEx As Exception
-                End Try
                 Return True
             End If
 
         Catch exFournisseur As Exceptions.FournisseurIntrouvableException
             GestionnaireLog.Warn("Fournisseur introuvable avec SIRET : " & siret)
-            GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "FOURNISSEUR_INEXISTANT", "Le SIRET saisi est introuvable dans la base fournisseur (LocPro).")
-            GestionnaireBddFacture.UpdateStatutCycleDeVie(idFacture, "IN_PROCESS")
-            Try
-                Dim mailevaService As New Services.MailevaApiService()
-                Task.Run(Function() mailevaService.MettreAJourStatutCycleDeVieAsync(idFacture, "IN_PROCESS")).Wait()
-            Catch ignoreEx As Exception
-            End Try
-            errorMessage = "Le SIRET saisi est introuvable dans la base fournisseur (LocPro)."
+            GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "FOURNISSEUR_INTROUVABLE", "Le SIREN/SIRET saisi est introuvable dans la base LocPro.")
+            errorMessage = "Le SIREN/SIRET saisi est introuvable dans la base LocPro."
             Return False
         Catch ex As Exception
             GestionnaireLog.Error("Erreur re-traitement SIRET Demat : " & ex.ToString())

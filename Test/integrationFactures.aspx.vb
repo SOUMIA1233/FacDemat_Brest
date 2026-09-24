@@ -1,4 +1,4 @@
-﻿Imports System.IO
+Imports System.IO
 Imports Telerik.Web.UI
 Imports System
 
@@ -7,10 +7,13 @@ Partial Class integrationFactures
 
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As EventArgs) Handles Me.Load
         rwFormulaireCorrespondance.VisibleOnPageLoad = False
+        rwIntegrationResult.VisibleOnPageLoad = False
 
         If Not IsPostBack Then
             ChargerHistorique()
         End If
+        ' Toujours vérifier les factures au rechargement de la page au cas où le Refresh JS échoue
+        ServiceReintegration.VerifierFacturesDematParLot()
         ' pour la facture demat c'est déclanché dans la fonction rgFacturesDemat_NeedDataSource via la déclaration dans le tableau radGrid OnNeedDataSource="rgFacturesDemat_NeedDataSource"
     End Sub
 
@@ -188,7 +191,8 @@ Partial Class integrationFactures
                                            "&refFour=" & Server.UrlEncode(codePrestaFournisseur) &
                                            "&libelle=" & Server.UrlEncode(descr) &
                                            "&numOR=" & Server.UrlEncode(numOR) &
-                                           "&numFac=" & Server.UrlEncode(numFacture)
+                                           "&numFac=" & Server.UrlEncode(numFacture) &
+                                           "&gridID=" & rgFacturesDemat.ClientID
 
                         ' Ouvrir la RadWindow
                         rwFormulaireCorrespondance.NavigateUrl = url
@@ -598,8 +602,14 @@ Partial Class integrationFactures
                         Dim numFacture As String = If(IsDBNull(drv("NumFacture")), "", drv("NumFacture").ToString())
                         Dim codePrestaFournisseur As String = If(IsDBNull(drv("CodePrestaFournisseur")), "", drv("CodePrestaFournisseur").ToString())
                         Dim codeFournisseur As String = ""
-                        Dim siret As String = If(IsDBNull(drv("Siret")), "", drv("Siret").ToString())
 
+                        Dim siret As String = ""
+                        If drv.Row.Table.Columns.Contains("Siret_Vend") AndAlso Not IsDBNull(drv("Siret_Vend")) Then
+                            siret = drv("Siret_Vend").ToString().Trim()
+                        End If
+                        If String.IsNullOrEmpty(siret) AndAlso drv.Row.Table.Columns.Contains("Siren") AndAlso Not IsDBNull(drv("Siren")) Then
+                            siret = drv("Siren").ToString().Trim()
+                        End If
                         If Not String.IsNullOrEmpty(siret) Then
                             Try
                                 Dim infosFour = ServiceOR.retournerInfosFournisseur(siret)
@@ -614,6 +624,12 @@ Partial Class integrationFactures
                         ' Fallback sur la méthode historique si non trouvé
                         If String.IsNullOrEmpty(codeFournisseur) Then
                             codeFournisseur = GestionnaireBddFacture.GetCodeFournisseur(numOR, numFacture)
+                        End If
+
+                        ' Injecter le code fournisseur dans le CommandArgument pour le JS (openPopupFromBtn)
+                        If btnAjouterRegle IsNot Nothing Then
+                            Dim descr As String = If(IsDBNull(drv("Descr")), "", drv("Descr").ToString())
+                            btnAjouterRegle.CommandArgument = numOR & "~" & numFacture & "~" & codePrestaFournisseur & "~" & descr & "~" & codeFournisseur
                         End If
 
                         If Not String.IsNullOrEmpty(codeFournisseur) Then
@@ -720,7 +736,8 @@ Partial Class integrationFactures
                                        "&refFour=" & Server.UrlEncode(codePrestaFournisseur) &
                                        "&libelle=" & Server.UrlEncode(descr) &
                                        "&numOR=" & Server.UrlEncode(numOR) &
-                                       "&numFac=" & Server.UrlEncode(numFacture)
+                                       "&numFac=" & Server.UrlEncode(numFacture) &
+                                       "&gridID=" & rgFacturesDemat.ClientID
 
                     rwFormulaireCorrespondance.NavigateUrl = url
                     rwFormulaireCorrespondance.VisibleOnPageLoad = True
@@ -731,11 +748,66 @@ Partial Class integrationFactures
     ' Pour vérifier la validité du siret saisie
     Protected Sub rgFacturesDemat_ItemCommand(sender As Object, e As GridCommandEventArgs) Handles rgFacturesDemat.ItemCommand, rgFacturesDematHistorique.ItemCommand
         Select Case e.CommandName
+            Case "Refresh"
+                ' Lancé typiquement par la fermeture du popup pour réévaluer les prestations/fournisseurs
+                ServiceReintegration.VerifierFacturesDematParLot()
+                CType(sender, RadGrid).Rebind()
+
             Case "Comptabiliser"
                 Dim idFacture As String = e.CommandArgument.ToString()
-                ' TODO: Implémenter la logique de comptabilisation complète 
-                ' (Vérifier si Approuvée/Refusée, matcher avec avoir, etc.)
-                ScriptManager.RegisterStartupScript(Me, Me.GetType(), "alertCompta", "alert('En cours de développement : La logique de comptabilisation pour la facture ID " & idFacture.Replace("'", "\'") & " va être implémentée ici.');", True)
+                Dim dt As System.Data.DataTable = GestionnaireBddFacture.GetFactureDematById(idFacture)
+
+                If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then
+                    Dim statutActuel As String = ""
+                    If Not IsDBNull(dt.Rows(0)("Statut")) Then
+                        statutActuel = dt.Rows(0)("Statut").ToString().ToUpper()
+                    End If
+                    
+                    Dim lblIntegrationResult As Label = CType(rwIntegrationResult.ContentContainer.FindControl("lblIntegrationResult"), Label)
+                    Dim ctrl As Control = CType(sender, Control)
+                    Dim scriptOpen As String = "setTimeout(function(){ var w = $find('" & rwIntegrationResult.ClientID & "'); if(w) w.show(); }, 100);"
+                    
+                    ' Anti-refresh F5 : on compare le token envoyé par le client avec celui en session
+                    ' Anti-refresh F5 : on récupère le token envoyé par le client
+                    Dim currentToken As String = ""
+                    For Each key As String In Request.Form.AllKeys
+                        If key IsNot Nothing AndAlso key.EndsWith("hfActionToken") Then
+                            currentToken = Request.Form(key)
+                            Exit For
+                        End If
+                    Next
+
+                    Dim sessionKeyToken As String = "ActionToken_" & idFacture
+                    Dim isRealClick As Boolean = (Session(sessionKeyToken) Is Nothing OrElse Session(sessionKeyToken).ToString() <> currentToken)
+                    
+                    ' Si la facture est déjà intégrée
+                    If statutActuel = "SUCCES" OrElse statutActuel = "INTEGREE" Then
+                        If Not isRealClick Then
+                            ' F5 ou rafraîchissement silencieux : on ignore
+                            CType(sender, RadGrid).Rebind()
+                            Exit Select
+                        Else
+                            ' Vrai clic : on affiche le message
+                            Session(sessionKeyToken) = currentToken
+                            lblIntegrationResult.Text = "<span style='color: #FF9800;'>Cette facture a déjà été intégrée dans LocPro.</span>"
+                            ScriptManager.RegisterStartupScript(ctrl, ctrl.GetType(), "showIntResult", scriptOpen, True)
+                            CType(sender, RadGrid).Rebind()
+                            Exit Select
+                        End If
+                    End If
+                    
+                    Session(sessionKeyToken) = currentToken
+
+                    Dim resultat = ServiceReintegration.ReintegrerFactureDemat(dt.Rows(0))
+
+                    If resultat.Succes Then
+                        lblIntegrationResult.Text = "<span style='color: #4CAF50;'>La facture a été intégrée avec succès dans LocPro.</span>"
+                    Else
+                        lblIntegrationResult.Text = "<span style='color: #F44336;'>Erreur lors de l'intégration : " & resultat.Message.Replace("'", "&apos;") & "</span>"
+                    End If
+                    ScriptManager.RegisterStartupScript(ctrl, ctrl.GetType(), "showIntResult", scriptOpen, True)
+                    CType(sender, RadGrid).Rebind()
+                End If
 
             Case "ValidateSiren"
                 Dim idFacture As String = e.CommandArgument.ToString()
@@ -745,28 +817,31 @@ Partial Class integrationFactures
 
                 If txtSiren IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(txtSiren.Text) Then
                     Dim nouveauSiren As String = txtSiren.Text.Trim()
+                    
+                    ' Validation : 9 ou 14 chiffres uniquement
+                    If Not IsNumeric(nouveauSiren) OrElse (nouveauSiren.Length <> 9 AndAlso nouveauSiren.Length <> 14) Then
+                        Dim lblSiretMsgErr As Label = CType(dataItem.FindControl("lblSiretMsg"), Label)
+                        If lblSiretMsgErr IsNot Nothing Then
+                            lblSiretMsgErr.Text = "Erreur: 9 ou 14 chiffres requis."
+                            lblSiretMsgErr.ForeColor = System.Drawing.Color.Red
+                            lblSiretMsgErr.Visible = True
+                        End If
+                        txtSiren.Style("border") = "2px solid red"
+                        Exit Select
+                    End If
 
-                    ' Mettre à jour en base
-                    GestionnaireBddFacture.UpdateSirenDemat(idFacture, nouveauSiren)
-
-                    ' Retraiter
+                    ' Retraiter et vérifier dans LocPro
                     Dim errorMessage As String = ""
                     Dim succes As Boolean = ServiceReintegration.RetraiterFactureSiretDemat(idFacture, nouveauSiren, errorMessage)
 
                     If succes Then
-                        Dim lblSiretMsg As Label = CType(dataItem.FindControl("lblSiretMsg"), Label)
-                        If lblSiretMsg IsNot Nothing Then
-                            lblSiretMsg.Text = "Validé"
-                            lblSiretMsg.ForeColor = System.Drawing.Color.Green
-                            lblSiretMsg.Visible = True
-                        End If
+                        ' Mettre à jour en base UNIQUEMENT si le fournisseur existe dans LocPro
+                        GestionnaireBddFacture.UpdateSirenDemat(idFacture, nouveauSiren)
+                        
                         txtSiren.Style("border") = ""
 
-                        ' Recharger
-                        If e.Item.OwnerTableView.Name = "MasterTableView" Then
-                            CType(sender, RadGrid).Rebind()
-                        End If
-                        ScriptManager.RegisterStartupScript(Me, Me.GetType(), "RefreshGridDemat", "setTimeout(function() { refreshRadGrid(); }, 500);", True)
+                        ' Recharger la grille pour afficher le fournisseur
+                        CType(sender, RadGrid).Rebind()
                     Else
                         Dim lblSiretMsg As Label = CType(dataItem.FindControl("lblSiretMsg"), Label)
                         If lblSiretMsg IsNot Nothing Then
@@ -789,8 +864,8 @@ Partial Class integrationFactures
             Dim pnlFournisseur As Panel = CType(item.FindControl("pnlFournisseur"), Panel)
             If pnlFournisseur Is Nothing Then Return
 
-            Dim txtSiren As TextBox = CType(item.FindControl("txtSiret"), TextBox)
-            Dim btnValiderSiren As RadButton = CType(item.FindControl("btnValiderSiret"), RadButton)
+            Dim txtSiren As TextBox = CType(item.FindControl("txtSirenDemat"), TextBox)
+            Dim btnValiderSiren As RadButton = CType(item.FindControl("btnValiderSirenDemat"), RadButton)
             
             Dim lblFournisseur As Label = Nothing
             Dim cellFournisseur As TableCell = item("ColRaisonSociale")
@@ -826,30 +901,40 @@ Partial Class integrationFactures
                 End If
             End If
             
-            ' Prioriser le SIRET pour l'affichage
-            Dim valeurAffichage As String = siretBase
-            If String.IsNullOrEmpty(valeurAffichage) OrElse valeurAffichage.ToLower() = "null" Then
-                valeurAffichage = sirenBase
-            End If
+            ' On vérifie si le fournisseur existe dans LocPro en testant d'abord le SIRET puis le SIREN
+            Dim existeDansLocPro As Boolean = False
+            Dim nomFournisseurLocPro As String = ""
+            Dim codeFournisseurLocPro As String = ""
+            Dim valeurAffichage As String = ""
             
+            Dim dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siretBase, "")
+            If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
+                existeDansLocPro = True
+                valeurAffichage = siretBase
+                codeFournisseurLocPro = dtFourn.Rows(0)("F050KY").ToString().Trim()
+                nomFournisseurLocPro = dtFourn.Rows(0)("F050NOM").ToString().Trim()
+            Else
+                dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren("", sirenBase)
+                If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
+                    existeDansLocPro = True
+                    valeurAffichage = sirenBase
+                    codeFournisseurLocPro = dtFourn.Rows(0)("F050KY").ToString().Trim()
+                    nomFournisseurLocPro = dtFourn.Rows(0)("F050NOM").ToString().Trim()
+                End If
+            End If
+
+            If Not existeDansLocPro Then
+                ' Aucun ne correspond, on affiche le SIRET en priorité, ou le SIREN
+                valeurAffichage = siretBase
+                If String.IsNullOrEmpty(valeurAffichage) OrElse valeurAffichage.ToLower() = "null" Then
+                    valeurAffichage = sirenBase
+                End If
+            End If
+
             If String.IsNullOrEmpty(valeurAffichage) Then
                 txtSiren.Text = ""
             Else
                 txtSiren.Text = valeurAffichage
-            End If
-
-            ' On vérifie si le fournisseur existe dans LocPro avec les 3 requêtes (SIRET ou SIREN)
-            Dim existeDansLocPro As Boolean = False
-            Dim nomFournisseurLocPro As String = ""
-            Dim codeFournisseurLocPro As String = ""
-            
-            If Not String.IsNullOrEmpty(valeurAffichage) Then
-                Dim dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siretBase, sirenBase)
-                If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
-                    existeDansLocPro = True
-                    codeFournisseurLocPro = dtFourn.Rows(0)("F050KY").ToString().Trim()
-                    nomFournisseurLocPro = dtFourn.Rows(0)("F050NOM").ToString().Trim()
-                End If
             End If
 
             Dim lblSirenText As Label = CType(item.FindControl("lblSirenText"), Label)
@@ -903,7 +988,7 @@ Partial Class integrationFactures
                 End If
             End If
         Catch ex As Exception
-            Dim txtSirenErr As TextBox = CType(item.FindControl("txtSiret"), TextBox)
+            Dim txtSirenErr As TextBox = CType(item.FindControl("txtSirenDemat"), TextBox)
             If txtSirenErr IsNot Nothing Then
                 txtSirenErr.Text = "ERR"
                 txtSirenErr.ToolTip = ex.Message

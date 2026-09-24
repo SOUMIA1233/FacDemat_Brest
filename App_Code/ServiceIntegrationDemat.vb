@@ -8,7 +8,7 @@ Imports Services
 Public Class ServiceIntegrationDemat
 
     ''' <summary>
-    ''' Ré-intègre toutes les factures dématérialisées (D_invoice) EN_ATTENTE dans LocPro
+    ''' Ré-intègre toutes les factures dématérialisées (D_invoice) A_INTEGRER dans LocPro
     ''' </summary>
     Public Shared Function ReintegrerFacturesDematParLot() As ServiceReintegration.ResultatLot
         Dim resultat As New ServiceReintegration.ResultatLot()
@@ -16,21 +16,26 @@ Public Class ServiceIntegrationDemat
         Try
             GestionnaireLog.Info("DÉBUT TRAITEMENT PAR LOT (DEMAT)")
 
-            ' 1. Récupérer toutes les factures Demat EN_ATTENTE
-            Dim dtFactures As DataTable = GestionnaireBddFacture.ObtenirFacturesDematEnAttente()
+            ' 1. Récupérer toutes les factures Demat à vérifier/intégrer
+            Dim dtFactures As DataTable = GestionnaireBddFacture.ObtenirFacturesDematAVerifier()
             If dtFactures Is Nothing OrElse dtFactures.Rows.Count = 0 Then
-                GestionnaireLog.Info("Aucune facture dématérialisée EN_ATTENTE à traiter")
+                GestionnaireLog.Info("Aucune facture dématérialisée à traiter")
                 Return resultat
             End If
 
-            GestionnaireLog.Info(dtFactures.Rows.Count & " facture(s) dématérialisée(s) EN_ATTENTE à traiter")
+            GestionnaireLog.Info(dtFactures.Rows.Count & " facture(s) dématérialisée(s) à traiter")
 
             ' 2. Traiter chaque facture
             For Each row As DataRow In dtFactures.Rows
                 Dim idFacture As String = row("IdFacture").ToString()
                 Dim numFacture As String = row("NumeroFacture").ToString()
                 Dim numOR As String = row("numOr").ToString()
-                Dim siret As String = row("NumeroTVA_Vend").ToString()
+                Dim siret As String = ""
+                If row.Table.Columns.Contains("Siret_Vend") AndAlso Not IsDBNull(row("Siret_Vend")) AndAlso Not String.IsNullOrWhiteSpace(row("Siret_Vend").ToString()) Then
+                    siret = row("Siret_Vend").ToString().Trim()
+                ElseIf row.Table.Columns.Contains("Siren_Vend") AndAlso Not IsDBNull(row("Siren_Vend")) AndAlso Not String.IsNullOrWhiteSpace(row("Siren_Vend").ToString()) Then
+                    siret = row("Siren_Vend").ToString().Trim()
+                End If
 
                 Try
                     ' A. Trouver le code fournisseur LocPro

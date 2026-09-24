@@ -28,12 +28,48 @@ Public Class GestionnaireBddFacture
     End Function
 
 
-    Public Shared Function retournerFournisseur(siret As String) As DataTable
-        'refaire la requete en rajoutant un lien pour avoir le code fournisseur dans la table F050TIERS
-        ' ne pas oublier de modifier la méthode appelante qui mets les informations de la table dans l'objet "InfosFournisseur"
-        Dim sql As String = "SELECT F050KY FROM F050TIERS inner join F020ADR on F050TIERS.K050020ADR = F020ADR.f020ky WHERE F020SIRET = '" & siret.Replace(" ", "") & "';"
+    Public Shared Function retournerFournisseur(saisie As String) As DataTable
+        Dim valeurClean As String = saisie.Trim().Replace(" ", "")
+        Dim siretClean As String = ""
+        Dim sirenClean As String = ""
+
+        If valeurClean.Length = 14 Then
+            siretClean = valeurClean
+            sirenClean = valeurClean.Substring(0, 9)
+        ElseIf valeurClean.Length = 9 Then
+            sirenClean = valeurClean
+        Else
+            siretClean = valeurClean
+            sirenClean = valeurClean
+        End If
+
+        Dim dt As DataTable = Nothing
+        Dim sql As String = ""
+
         Using acd As New AccesDonnees()
-            Return acd.creation_datatable(sql, BaseDeDonneesLP)
+            ' Exercice 1 : Chercher le SIRET exact dans F020SIRET
+            If Not String.IsNullOrEmpty(siretClean) Then
+                sql = "SELECT F050KY, F020RAISON FROM F050TIERS inner join F020ADR on F050TIERS.K050020ADR = F020ADR.f020ky WHERE F020SIRET = '" & siretClean & "';"
+                dt = acd.creation_datatable(sql, BaseDeDonneesLP)
+            End If
+
+            If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then Return dt
+
+            ' Exercice 2 : Chercher le SIREN dans la colonne SIRET (F020SIRET LIKE 'siren%')
+            If Not String.IsNullOrEmpty(sirenClean) Then
+                sql = "SELECT F050KY, F020RAISON FROM F050TIERS inner join F020ADR on F050TIERS.K050020ADR = F020ADR.f020ky WHERE F020SIRET LIKE '" & sirenClean & "%';"
+                dt = acd.creation_datatable(sql, BaseDeDonneesLP)
+            End If
+
+            If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then Return dt
+
+            ' Exercice 3 : Chercher le SIREN dans la colonne SIREN (F050SIREN)
+            If Not String.IsNullOrEmpty(sirenClean) Then
+                sql = "SELECT F050KY, F050NOM AS F020RAISON FROM F050TIERS WHERE F050SIREN = '" & sirenClean & "';"
+                dt = acd.creation_datatable(sql, BaseDeDonneesLP)
+            End If
+
+            Return dt
         End Using
     End Function
 
@@ -764,6 +800,23 @@ Public Class GestionnaireBddFacture
     End Function
 
     ''' <summary>
+    ''' Récupère une facture dématérialisée par son Id
+    ''' </summary>
+    Public Shared Function GetFactureDematById(idFacture As String) As DataTable
+        Try
+            Dim sql As String = "SELECT IdFacture, NumeroFacture, SocieteEmet, numOr, MontantTotal, MontantHT, MontantTVA, DateEmi, DateEcheance, NumeroTVA_Vend, Siret_Vend, Siren_Vend, Statut " &
+                               "FROM D_invoice " &
+                               "WHERE IdFacture = '" & idFacture.Replace("'", "''") & "'"
+
+            Dim acd As New AccesDonnees()
+            Return acd.creation_datatable(sql, BaseDeDonnees)
+        Catch ex As Exception
+            GestionnaireLog.Error("Erreur récupération facture Demat by Id : " & ex.Message)
+            Return New DataTable()
+        End Try
+    End Function
+
+    ''' <summary>
     ''' Met à jour le statut du cycle de vie (Maileva) d'une facture dématérialisée
     ''' </summary>
     Public Shared Sub UpdateStatutCycleDeVie(idFacture As String, nouveauStatut As String)
@@ -872,12 +925,24 @@ Public Class GestionnaireBddFacture
         End Try
     End Sub
 
-    Public Shared Sub UpdateSirenDemat(idFacture As String, siren As String)
+    Public Shared Sub UpdateSirenDemat(idFacture As String, valeurSaisie As String)
         Try
-            Dim sql As String = "UPDATE D_invoice SET Siren_Vend = @Siren WHERE IdFacture = @IdFacture"
+            valeurSaisie = valeurSaisie.Trim().Replace(" ", "")
+            Dim sql As String = ""
+            
             Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
-                Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@Siren", siren.Trim().Replace(" ", ""))
+                Using cmd As New SqlCommand()
+                    cmd.Connection = conn
+                    If valeurSaisie.Length = 14 Then
+                        sql = "UPDATE D_invoice SET Siren_Vend = @Siren, Siret_Vend = @Siret WHERE IdFacture = @IdFacture"
+                        cmd.Parameters.AddWithValue("@Siren", valeurSaisie.Substring(0, 9))
+                        cmd.Parameters.AddWithValue("@Siret", valeurSaisie)
+                    Else
+                        sql = "UPDATE D_invoice SET Siren_Vend = @Siren WHERE IdFacture = @IdFacture"
+                        cmd.Parameters.AddWithValue("@Siren", valeurSaisie)
+                    End If
+                    
+                    cmd.CommandText = sql
                     cmd.Parameters.AddWithValue("@IdFacture", idFacture)
 
                     conn.Open()
@@ -992,7 +1057,7 @@ Public Class GestionnaireBddFacture
         End If
 
         Try
-            Dim sql As String = "SELECT DISTINCT f.IdFacture, f.NumeroTVA_Vend " &
+            Dim sql As String = "SELECT DISTINCT f.IdFacture, f.NumeroTVA_Vend, f.Siret_Vend, f.Siren_Vend " &
                                "FROM D_invoice f " &
                                "INNER JOIN D_invoice_lignes l ON f.IdFacture = l.IdFacture " &
                                "WHERE l.refArticleFournisseur = '" & codePrestaFournisseur.Trim().Replace("'", "''") & "' " &
@@ -1006,17 +1071,17 @@ Public Class GestionnaireBddFacture
             Return New DataTable()
         End Try
     End Function
-    Public Shared Function ObtenirFacturesDematEnAttente() As DataTable
+    Public Shared Function ObtenirFacturesDematAVerifier() As DataTable
         Try
-            Dim sql As String = "SELECT TOP 10 IdFacture, NumeroFacture, SocieteEmet, numOr, MontantTotal, MontantHT, MontantTVA, DateEmi, DateEcheance, NumeroTVA_Vend " &
+            Dim sql As String = "SELECT IdFacture, NumeroFacture, SocieteEmet, numOr, MontantTotal, MontantHT, MontantTVA, DateEmi, DateEcheance, NumeroTVA_Vend, Siret_Vend, Siren_Vend " &
                                "FROM D_invoice " &
-                               "WHERE Statut IN ('EN_ATTENTE', 'ERROR', 'A_INTEGRER') " &
+                               "WHERE Statut IN ('ERROR', 'A_INTEGRER', 'PRESTATION_INEXISTANTE', 'FOURNISSEUR_INTROUVABLE', 'FOURNISSEUR_INEXISTANT') " &
                                "ORDER BY DateCreation DESC"
 
             Dim acd As New AccesDonnees()
             Return acd.creation_datatable(sql, BaseDeDonnees)
         Catch ex As Exception
-            GestionnaireLog.Error("Erreur récupération factures Demat EN_ATTENTE : " & ex.Message)
+            GestionnaireLog.Error("Erreur récupération factures Demat A_VERIFIER : " & ex.Message)
             Return New DataTable()
         End Try
     End Function
