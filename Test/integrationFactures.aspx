@@ -1,4 +1,4 @@
-<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
+﻿<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
     MaintainScrollPositionOnPostback="true" Title="Intégration de Factures fournisseur"
     CodeFile="integrationFactures.aspx.vb" Inherits="integrationFactures" Culture="fr-FR" UICulture="fr-FR"
     CodePage="65001" %>
@@ -141,6 +141,32 @@
                                                 hf.value = new Date().getTime().toString();
                                             }
                                         }
+
+                                        function editRefClientSide(lblElement) {
+                                            var container = lblElement.parentNode;
+                                            var editControls = container.querySelector('.edit-controls-container');
+                                            var txt = container.querySelector('.txt-ref-fournisseur');
+
+                                            if (editControls && txt) {
+                                                lblElement.style.display = 'none';
+                                                editControls.style.display = 'inline-block';
+                                                txt.value = lblElement.innerText.trim();
+                                                txt.focus();
+                                            }
+                                        }
+
+                                        function editSirenClientSide(lblElement) {
+                                            var container = lblElement.parentNode;
+                                            var editControls = container.querySelector('.edit-siren-container');
+                                            var txt = container.querySelector('.txt-siren-input');
+
+                                            if (editControls && txt) {
+                                                lblElement.style.display = 'none';
+                                                editControls.style.display = 'inline-block';
+                                                txt.value = lblElement.innerText.trim();
+                                                txt.focus();
+                                            }
+                                        }
                                     </script>
                                     <telerik:RadGrid ID="rgFacturesDemat" runat="server" AutoGenerateColumns="False"
                                         Width="100%" AllowPaging="True" PageSize="20" Skin="MetroTouch"
@@ -194,25 +220,30 @@
                                                         <asp:Panel ID="pnlFournisseur" runat="server">
                                                             <div style="white-space: nowrap;">
                                                                 <asp:Label ID="lblSirenText" runat="server"
-                                                                    Visible="false"
-                                                                    Style="margin-right: 5px; font-weight: bold;">
+                                                                    CssClass="txt-siren-label"
+                                                                    Style="margin-right: 5px; font-weight: bold; cursor: pointer;"
+                                                                    ondblclick="editSirenClientSide(this);"
+                                                                    ToolTip="Double-cliquez pour modifier">
                                                                 </asp:Label>
-                                                                <asp:TextBox ID="txtSirenDemat" runat="server"
-                                                                    Visible="true" MaxLength="14"
-                                                                    CssClass="textbox-siret-custom"
-                                                                    Style="vertical-align: middle; width: 110px;"
-                                                                    placeholder="SIREN/SIRET">
-                                                                </asp:TextBox>
-                                                                <telerik:RadButton ID="btnValiderSirenDemat"
-                                                                    runat="server" Visible="true"
-                                                                    ButtonType="StandardButton"
-                                                                    ToolTip="Valider le SIREN / SIRET"
-                                                                    CommandName="ValidateSiren"
-                                                                    CommandArgument='<%# Eval("IdFacture") %>'
-                                                                    Style="vertical-align: middle; margin-left: 4px; "
-                                                                    CssClass="btn-valider">
-                                                                    <Icon PrimaryIconCssClass="rbOk" />
-                                                                </telerik:RadButton>
+                                                                <span runat="server" id="editSirenContainer"
+                                                                    class="edit-siren-container"
+                                                                    style="display:none; white-space: nowrap;">
+                                                                    <asp:TextBox ID="txtSirenDemat" runat="server"
+                                                                        MaxLength="14"
+                                                                        CssClass="textbox-siret-custom txt-siren-input"
+                                                                        Style="vertical-align: middle; width: 110px;"
+                                                                        placeholder="SIREN/SIRET">
+                                                                    </asp:TextBox>
+                                                                    <telerik:RadButton ID="btnValiderSirenDemat"
+                                                                        runat="server" ButtonType="StandardButton"
+                                                                        ToolTip="Valider le SIREN / SIRET"
+                                                                        CommandName="ValidateSiren"
+                                                                        CommandArgument='<%# Eval("IdFacture") %>'
+                                                                        Style="vertical-align: middle; margin-left: 4px; "
+                                                                        CssClass="btn-valider">
+                                                                        <Icon PrimaryIconCssClass="rbOk" />
+                                                                    </telerik:RadButton>
+                                                                </span>
                                                             </div>
                                                             <div style="margin-top: 5px;">
                                                                 <asp:Label ID="lblSiretMsg" runat="server"
@@ -342,30 +373,40 @@
                                                                         UniqueName="CodePrestaFournisseur"
                                                                         DataField="CodePrestaFournisseur">
                                                                         <ItemTemplate>
-                                                                            <div style="white-space: nowrap;">
-                                                                                <asp:TextBox ID="txtRefFournisseur"
-                                                                                    runat="server" Visible="false"
-                                                                                    MaxLength="50"
-                                                                                    CssClass="textbox-siret-custom"
-                                                                                    Style="vertical-align: middle; width: 120px; min-width: 120px;"
-                                                                                    placeholder="Référence">
-                                                                                </asp:TextBox>
-                                                                                <telerik:RadButton
-                                                                                    ID="btnValiderRefFournisseur"
-                                                                                    runat="server" Visible="false"
-                                                                                    ButtonType="StandardButton"
-                                                                                    ToolTip="Valider la référence"
-                                                                                    CommandName="ValidateRefFournisseur"
-                                                                                    CommandArgument='<%# Eval("IdFacture").ToString() & "|" & Eval("NumLig").ToString() %>'
-                                                                                    Style="vertical-align: middle; margin-left: 4px; "
-                                                                                    CssClass="btn-valider">
-                                                                                    <Icon PrimaryIconCssClass="rbOk" />
-                                                                                </telerik:RadButton>
+                                                                            <div class="ref-container"
+                                                                                style="white-space: nowrap;">
+                                                                                <span runat="server"
+                                                                                    id="editControlsContainer"
+                                                                                    class="edit-controls-container"
+                                                                                    style="display:none; white-space: nowrap;">
+                                                                                    <asp:TextBox ID="txtRefFournisseur"
+                                                                                        runat="server" MaxLength="50"
+                                                                                        CssClass="textbox-siret-custom txt-ref-fournisseur"
+                                                                                        Style="vertical-align: middle; width: 120px; min-width: 120px;"
+                                                                                        placeholder="Référence">
+                                                                                    </asp:TextBox>
+                                                                                    <telerik:RadButton
+                                                                                        ID="btnValiderRefFournisseur"
+                                                                                        runat="server"
+                                                                                        ButtonType="StandardButton"
+                                                                                        ToolTip="Valider la référence"
+                                                                                        CommandName="ValidateRefFournisseur"
+                                                                                        CommandArgument='<%# Eval("IdFacture").ToString() & "|" & Eval("NumLig").ToString() %>'
+                                                                                        Style="vertical-align: middle; margin-left: 4px; "
+                                                                                        CssClass="btn-valider btn-ref-fournisseur">
+                                                                                        <Icon
+                                                                                            PrimaryIconCssClass="rbOk" />
+                                                                                    </telerik:RadButton>
+                                                                                </span>
+                                                                                <asp:Label ID="lblRefFournisseur"
+                                                                                    runat="server"
+                                                                                    CssClass="lbl-ref-fournisseur"
+                                                                                    ondblclick="editRefClientSide(this);"
+                                                                                    ToolTip="Double-cliquez pour modifier"
+                                                                                    Style="cursor: pointer; display: inline-block; padding: 5px;"
+                                                                                    Text='<%# Eval("CodePrestaFournisseur") %>'>
+                                                                                </asp:Label>
                                                                             </div>
-                                                                            <asp:Label ID="lblRefFournisseur"
-                                                                                runat="server"
-                                                                                Text='<%# Eval("CodePrestaFournisseur") %>'>
-                                                                            </asp:Label>
                                                                         </ItemTemplate>
                                                                     </telerik:GridTemplateColumn>
                                                                     <telerik:GridTemplateColumn HeaderText="Code LocPro"
@@ -379,7 +420,7 @@
                                                                                 runat="server" Visible="false"
                                                                                 AutoPostBack="false"
                                                                                 OnClientClicking="openPopupFromBtn"
-                                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") %>'
+                                                                                CommandArgument='<%# If(Eval("NumOR") Is DBNull.Value, "", Eval("NumOR")) & "|" & If(Eval("NumFacture") Is DBNull.Value, "", Eval("NumFacture")) & "|" & If(Eval("CodePrestaFournisseur") Is DBNull.Value, "", Eval("CodePrestaFournisseur")) & "|" & If(Eval("CodeFournisseurLocpro") Is DBNull.Value, "", Eval("CodeFournisseurLocpro")) & "|" & If(Eval("Descr") Is DBNull.Value, "", Eval("Descr")) %>'
                                                                                 ToolTip="Ajouter une correspondance LocPro"
                                                                                 ButtonType="LinkButton" Text="&#10133;"
                                                                                 CssClass="btn-ajouter-regle-mini">
@@ -527,25 +568,30 @@
                                                         <asp:Panel ID="pnlFournisseurDemat" runat="server">
                                                             <div style="white-space: nowrap;">
                                                                 <asp:Label ID="lblSirenTextDemat" runat="server"
-                                                                    Visible="false"
-                                                                    Style="margin-right: 5px; font-weight: bold;">
+                                                                    CssClass="txt-siren-label"
+                                                                    Style="margin-right: 5px; font-weight: bold; cursor: pointer;"
+                                                                    ondblclick="editSirenClientSide(this);"
+                                                                    ToolTip="Double-cliquez pour modifier">
                                                                 </asp:Label>
-                                                                <asp:TextBox ID="txtSirenDemat" runat="server"
-                                                                    Visible="true" MaxLength="14"
-                                                                    CssClass="textbox-siret-custom"
-                                                                    Style="vertical-align: middle; width: 100px;"
-                                                                    placeholder="SIREN/SIRET">
-                                                                </asp:TextBox>
-                                                                <telerik:RadButton ID="btnValiderSirenDemat"
-                                                                    runat="server" Visible="true"
-                                                                    ButtonType="StandardButton"
-                                                                    ToolTip="Valider le SIREN"
-                                                                    CommandName="ValidateSiren"
-                                                                    CommandArgument='<%# Eval("IdFacture") %>'
-                                                                    Style="vertical-align: middle; margin-left: 4px; "
-                                                                    CssClass="btn-valider">
-                                                                    <Icon PrimaryIconCssClass="rbOk" />
-                                                                </telerik:RadButton>
+                                                                <span runat="server" id="editSirenContainerDemat"
+                                                                    class="edit-siren-container"
+                                                                    style="display:none; white-space: nowrap;">
+                                                                    <asp:TextBox ID="txtSirenDemat" runat="server"
+                                                                        MaxLength="14"
+                                                                        CssClass="textbox-siret-custom txt-siren-input"
+                                                                        Style="vertical-align: middle; width: 100px;"
+                                                                        placeholder="SIREN/SIRET">
+                                                                    </asp:TextBox>
+                                                                    <telerik:RadButton ID="btnValiderSirenDemat"
+                                                                        runat="server" ButtonType="StandardButton"
+                                                                        ToolTip="Valider le SIREN"
+                                                                        CommandName="ValidateSiren"
+                                                                        CommandArgument='<%# Eval("IdFacture") %>'
+                                                                        Style="vertical-align: middle; margin-left: 4px; "
+                                                                        CssClass="btn-valider">
+                                                                        <Icon PrimaryIconCssClass="rbOk" />
+                                                                    </telerik:RadButton>
+                                                                </span>
                                                             </div>
                                                             <div style="margin-top: 5px;">
                                                                 <asp:Label ID="lblSiretMsg" runat="server"
@@ -613,30 +659,40 @@
                                                                         UniqueName="CodePrestaFournisseur"
                                                                         DataField="CodePrestaFournisseur">
                                                                         <ItemTemplate>
-                                                                            <div style="white-space: nowrap;">
-                                                                                <asp:TextBox ID="txtRefFournisseur"
-                                                                                    runat="server" Visible="false"
-                                                                                    MaxLength="50"
-                                                                                    CssClass="textbox-siret-custom"
-                                                                                    Style="vertical-align: middle; width: 120px; min-width: 120px;"
-                                                                                    placeholder="Référence">
-                                                                                </asp:TextBox>
-                                                                                <telerik:RadButton
-                                                                                    ID="btnValiderRefFournisseur"
-                                                                                    runat="server" Visible="false"
-                                                                                    ButtonType="StandardButton"
-                                                                                    ToolTip="Valider la référence"
-                                                                                    CommandName="ValidateRefFournisseur"
-                                                                                    CommandArgument='<%# Eval("IdFacture").ToString() & "|" & Eval("NumLig").ToString() %>'
-                                                                                    Style="vertical-align: middle; margin-left: 4px; "
-                                                                                    CssClass="btn-valider">
-                                                                                    <Icon PrimaryIconCssClass="rbOk" />
-                                                                                </telerik:RadButton>
+                                                                            <div class="ref-container"
+                                                                                style="white-space: nowrap;">
+                                                                                <span runat="server"
+                                                                                    id="editControlsContainer"
+                                                                                    class="edit-controls-container"
+                                                                                    style="display:none; white-space: nowrap;">
+                                                                                    <asp:TextBox ID="txtRefFournisseur"
+                                                                                        runat="server" MaxLength="50"
+                                                                                        CssClass="textbox-siret-custom txt-ref-fournisseur"
+                                                                                        Style="vertical-align: middle; width: 120px; min-width: 120px;"
+                                                                                        placeholder="Référence">
+                                                                                    </asp:TextBox>
+                                                                                    <telerik:RadButton
+                                                                                        ID="btnValiderRefFournisseur"
+                                                                                        runat="server"
+                                                                                        ButtonType="StandardButton"
+                                                                                        ToolTip="Valider la référence"
+                                                                                        CommandName="ValidateRefFournisseur"
+                                                                                        CommandArgument='<%# Eval("IdFacture").ToString() & "|" & Eval("NumLig").ToString() %>'
+                                                                                        Style="vertical-align: middle; margin-left: 4px; "
+                                                                                        CssClass="btn-valider btn-ref-fournisseur">
+                                                                                        <Icon
+                                                                                            PrimaryIconCssClass="rbOk" />
+                                                                                    </telerik:RadButton>
+                                                                                </span>
+                                                                                <asp:Label ID="lblRefFournisseur"
+                                                                                    runat="server"
+                                                                                    CssClass="lbl-ref-fournisseur"
+                                                                                    ondblclick="editRefClientSide(this);"
+                                                                                    ToolTip="Double-cliquez pour modifier"
+                                                                                    Style="cursor: pointer; display: inline-block; padding: 5px;"
+                                                                                    Text='<%# Eval("CodePrestaFournisseur") %>'>
+                                                                                </asp:Label>
                                                                             </div>
-                                                                            <asp:Label ID="lblRefFournisseur"
-                                                                                runat="server"
-                                                                                Text='<%# Eval("CodePrestaFournisseur") %>'>
-                                                                            </asp:Label>
                                                                         </ItemTemplate>
                                                                     </telerik:GridTemplateColumn>
                                                                     <telerik:GridTemplateColumn HeaderText="Code LocPro"
@@ -650,7 +706,7 @@
                                                                                 runat="server" Visible="false"
                                                                                 AutoPostBack="false"
                                                                                 OnClientClicking="openPopupFromBtn"
-                                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") %>'
+                                                                                CommandArgument='<%# If(Eval("NumOR") Is DBNull.Value, "", Eval("NumOR")) & "|" & If(Eval("NumFacture") Is DBNull.Value, "", Eval("NumFacture")) & "|" & If(Eval("CodePrestaFournisseur") Is DBNull.Value, "", Eval("CodePrestaFournisseur")) & "|" & If(Eval("CodeFournisseurLocpro") Is DBNull.Value, "", Eval("CodeFournisseurLocpro")) & "|" & If(Eval("Descr") Is DBNull.Value, "", Eval("Descr")) %>'
                                                                                 ToolTip="Ajouter une correspondance LocPro"
                                                                                 ButtonType="LinkButton" Text="&#10133;"
                                                                                 CssClass="btn-ajouter-regle-mini">
@@ -869,7 +925,7 @@
                                                             <telerik:RadButton ID="btnAjouterRegle" runat="server"
                                                                 ButtonType="LinkButton" AutoPostBack="false"
                                                                 OnClientClicking="openPopupFromBtn"
-                                                                CommandArgument='<%# Eval("NumOR") & "~" & Eval("NumFacture") & "~" & Eval("CodePrestaFournisseur") & "~" & Eval("Descr") %>'
+                                                                CommandArgument='<%# If(Eval("NumOR") Is DBNull.Value, "", Eval("NumOR")) & "|" & If(Eval("NumFacture") Is DBNull.Value, "", Eval("NumFacture")) & "|" & If(Eval("CodePrestaFournisseur") Is DBNull.Value, "", Eval("CodePrestaFournisseur")) & "||" & If(Eval("Descr") Is DBNull.Value, "", Eval("Descr")) %>'
                                                                 Visible="false"
                                                                 ToolTip="Créer une règle de correspondance"
                                                                 Text="&#10133;" CssClass="btn-ajouter-regle-mini">
@@ -972,12 +1028,12 @@
                                     <script>
                                         function openPopupFromBtn(sender, args) {
                                             var argsStr = sender.get_commandArgument();
-                                            var argArr = argsStr.split("~");
+                                            var argArr = argsStr.split("|");
                                             var numOR = argArr[0] || "";
                                             var numFacture = argArr[1] || "";
                                             var refFour = argArr[2] || "";
-                                            var libelle = argArr[3] || "";
-                                            var codeFour = argArr[4] || "";
+                                            var codeFour = argArr[3] || "";
+                                            var libelle = argArr.slice(4).join("|") || "";
 
                                             // Détecter la grille active pour que la popup sache quoi rafraîchir
                                             var gridID = "";

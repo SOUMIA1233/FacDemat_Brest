@@ -269,6 +269,23 @@ Public Class GestionnaireBddFacture
 
 
     ''' <summary>
+    ''' Récupère la liste des prestations LocPro actives avec les natures spécifiées
+    ''' </summary>
+    Public Shared Function GetListePrestationsLocPro() As DataTable
+        Dim dt As New DataTable()
+        Try
+            Dim sql As String = "SELECT F100KY FROM F100PRO WHERE F100ACTIF = '1' AND K100T33NAT IN ('ACHARGE', 'ARRET', 'CARBU', 'DEP', 'ENT', 'FRANCH', 'HONOR', 'SIN', 'TRANSPORT', 'TRANSPORTALLER', 'TRANSPORTRETOUR', 'VENTE') ORDER BY F100KY;"
+            
+            Using acd As New AccesDonnees()
+                dt = acd.creation_datatable(sql, BaseDeDonneesLP)
+            End Using
+        Catch ex As Exception
+            GestionnaireLog.Error("Erreur GetListePrestationsLocPro : " & ex.Message)
+        End Try
+        Return dt
+    End Function
+
+    ''' <summary>
     ''' Vérifie si une prestation LocPro existe dans la base de données
     ''' </summary>
     ''' <param name="codePrestation">Code de la prestation à vérifier (ex: VID, FL, MO)</param>
@@ -859,6 +876,7 @@ Public Class GestionnaireBddFacture
                                "I.numOr AS NumOR, " &
                                "I.Siren_Vend AS Siren, " &
                                "I.Siret_Vend AS Siret_Vend, " &
+                               "I.CodeFournisseurLocpro, " &
                                "I.NumeroFacture AS NumFacture " &
                                "FROM D_invoice_lignes L " &
                                "LEFT JOIN D_invoice I ON L.IdFacture = I.IdFacture " &
@@ -972,12 +990,13 @@ Public Class GestionnaireBddFacture
         End Try
     End Sub
 
-    Public Shared Sub MettreAJourRaisonSocialeDemat(idFacture As String, raisonSociale As String)
+    Public Shared Sub MettreAJourInfosLocproDemat(idFacture As String, codeFournisseur As String, nomFournisseur As String)
         Try
-            Dim sql As String = "UPDATE D_invoice SET SocieteEmet = @RaisonSociale WHERE IdFacture = @IdFacture"
+            Dim sql As String = "UPDATE D_invoice SET CodeFournisseurLocpro = @CodeFournisseur, NomFournisseurLocpro = @NomFournisseur WHERE IdFacture = @IdFacture"
             Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
                 Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@RaisonSociale", raisonSociale)
+                    cmd.Parameters.AddWithValue("@CodeFournisseur", codeFournisseur)
+                    cmd.Parameters.AddWithValue("@NomFournisseur", nomFournisseur)
                     cmd.Parameters.AddWithValue("@IdFacture", idFacture)
 
                     conn.Open()
@@ -985,7 +1004,24 @@ Public Class GestionnaireBddFacture
                 End Using
             End Using
         Catch ex As Exception
-            GestionnaireLog.Error("Erreur MettreAJourRaisonSocialeDemat : " & ex.Message)
+            GestionnaireLog.Error("Erreur MettreAJourInfosLocproDemat : " & ex.Message)
+        End Try
+    End Sub
+
+    Public Shared Sub MettreAJourIdFactureLocpro(idFacture As String, idFactureLocpro As String)
+        Try
+            Dim sql As String = "UPDATE D_invoice SET IdFactureLocpro = @IdLocpro WHERE IdFacture = @IdFacture"
+            Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@IdLocpro", idFactureLocpro)
+                    cmd.Parameters.AddWithValue("@IdFacture", idFacture)
+
+                    conn.Open()
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+        Catch ex As Exception
+            GestionnaireLog.Error("Erreur MettreAJourIdFactureLocpro : " & ex.Message)
         End Try
     End Sub
 

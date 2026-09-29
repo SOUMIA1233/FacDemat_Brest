@@ -584,10 +584,14 @@ Partial Class integrationFactures
                 refFournisseur = lblRefFournisseur.Text.Trim()
             End If
 
-            If String.IsNullOrEmpty(refFournisseur) AndAlso txtRefFournisseur IsNot Nothing AndAlso btnValiderRefFournisseur IsNot Nothing Then
-                txtRefFournisseur.Visible = True
-                btnValiderRefFournisseur.Visible = True
-                If lblRefFournisseur IsNot Nothing Then lblRefFournisseur.Visible = False
+            Dim editControlsContainer As HtmlGenericControl = CType(dataItem.FindControl("editControlsContainer"), HtmlGenericControl)
+
+            If String.IsNullOrEmpty(refFournisseur) Then
+                If editControlsContainer IsNot Nothing Then editControlsContainer.Style("display") = "inline-block"
+                If lblRefFournisseur IsNot Nothing Then lblRefFournisseur.Style("display") = "none"
+            Else
+                If editControlsContainer IsNot Nothing Then editControlsContainer.Style("display") = "none"
+                If lblRefFournisseur IsNot Nothing Then lblRefFournisseur.Style("display") = "inline-block"
             End If
             ' -------------------------------
 
@@ -600,36 +604,46 @@ Partial Class integrationFactures
                         Dim drv As System.Data.DataRowView = CType(dataItem.DataItem, System.Data.DataRowView)
                         Dim numOR As String = If(IsDBNull(drv("NumOR")), "", drv("NumOR").ToString())
                         Dim numFacture As String = If(IsDBNull(drv("NumFacture")), "", drv("NumFacture").ToString())
-                        Dim codePrestaFournisseur As String = If(IsDBNull(drv("CodePrestaFournisseur")), "", drv("CodePrestaFournisseur").ToString())
+                        Dim codePrestaFournisseur As String = ""
                         Dim codeFournisseur As String = ""
 
-                        Dim siret As String = ""
-                        If drv.Row.Table.Columns.Contains("Siret_Vend") AndAlso Not IsDBNull(drv("Siret_Vend")) Then
-                            siret = drv("Siret_Vend").ToString().Trim()
-                        End If
-                        If String.IsNullOrEmpty(siret) AndAlso drv.Row.Table.Columns.Contains("Siren") AndAlso Not IsDBNull(drv("Siren")) Then
-                            siret = drv("Siren").ToString().Trim()
-                        End If
-                        If Not String.IsNullOrEmpty(siret) Then
-                            Try
-                                Dim infosFour = ServiceOR.retournerInfosFournisseur(siret)
-                                If infosFour IsNot Nothing Then
-                                    codeFournisseur = infosFour.CodeFournisseur
+                        ' PRIORITE 1: Lecture depuis l'interface (Label parent) pour garantir la cohérence
+                        Try
+                            Dim parentItem As GridDataItem = CType(dataItem.OwnerTableView.ParentItem, GridDataItem)
+                            If parentItem IsNot Nothing Then
+                                Dim lblCodeFournisseurParent As Label = CType(parentItem.FindControl("lblCodeFournisseur"), Label)
+                                If lblCodeFournisseurParent IsNot Nothing AndAlso Not String.IsNullOrEmpty(lblCodeFournisseurParent.Text.Trim()) Then
+                                    codeFournisseur = lblCodeFournisseurParent.Text.Trim()
                                 End If
-                            Catch exSiret As Exception
-                                GestionnaireLog.Error("Erreur récupération InfosFournisseur : " & exSiret.Message)
-                            End Try
+                            End If
+                        Catch ex As Exception
+                            ' En cas d'erreur, on fallback sur la BDD
+                        End Try
+
+                        ' Fallback BDD si l'interface est vide
+                        If String.IsNullOrEmpty(codeFournisseur) Then
+                            If drv.Row.Table.Columns.Contains("CodeFournisseurLocpro") AndAlso Not IsDBNull(drv("CodeFournisseurLocpro")) Then
+                                codeFournisseur = drv("CodeFournisseurLocpro").ToString().Trim()
+                            ElseIf drv.Row.Table.Columns.Contains("CodeFournisseur") AndAlso Not IsDBNull(drv("CodeFournisseur")) Then
+                                codeFournisseur = drv("CodeFournisseur").ToString().Trim()
+                            End If
+                            
+                            If String.IsNullOrEmpty(codeFournisseur) Then
+                                codeFournisseur = GestionnaireBddFacture.GetCodeFournisseur(numOR, numFacture)
+                            End If
                         End If
 
-                        ' Fallback sur la méthode historique si non trouvé
-                        If String.IsNullOrEmpty(codeFournisseur) Then
-                            codeFournisseur = GestionnaireBddFacture.GetCodeFournisseur(numOR, numFacture)
+                        ' Utilisation de la référence affichée dans l'interface si elle existe, sinon BDD
+                        If Not String.IsNullOrEmpty(refFournisseur) Then
+                            codePrestaFournisseur = refFournisseur
+                        Else
+                            codePrestaFournisseur = If(IsDBNull(drv("CodePrestaFournisseur")), "", drv("CodePrestaFournisseur").ToString())
                         End If
 
                         ' Injecter le code fournisseur dans le CommandArgument pour le JS (openPopupFromBtn)
                         If btnAjouterRegle IsNot Nothing Then
                             Dim descr As String = If(IsDBNull(drv("Descr")), "", drv("Descr").ToString())
-                            btnAjouterRegle.CommandArgument = numOR & "~" & numFacture & "~" & codePrestaFournisseur & "~" & descr & "~" & codeFournisseur
+                            btnAjouterRegle.CommandArgument = numOR & "|" & numFacture & "|" & codePrestaFournisseur & "|" & codeFournisseur & "|" & descr
                         End If
 
                         If Not String.IsNullOrEmpty(codeFournisseur) Then
@@ -679,13 +693,102 @@ Partial Class integrationFactures
 
                         GestionnaireBddFacture.UpdateRefFournisseurLigne(idFacture, numLig, nouvelleRef)
 
+                        ' RE-VÉRIFIER pour mettre à jour le statut de la facture en direct !
+                        ServiceReintegration.VerifierFacturesDematParLot()
+
                         Dim lblResultat As Label = CType(Me.FindControl("lblResultatReintegrationDemat"), Label)
                         If lblResultat IsNot Nothing Then
                             AfficherResultatAction("Référence mise à jour avec succès.", True, lblResultat)
                         End If
 
                         ChargerHistorique()
-                        ScriptManager.RegisterStartupScript(Me, Me.GetType(), "RefreshGrid", "setTimeout(function() { refreshRadGrid(); }, 500);", True)
+
+                        ' Mettre à jour l'affichage de cette ligne spécifiquement SANS faire de Rebind global
+                        Dim lblRefFournisseur As Label = CType(dataItem.FindControl("lblRefFournisseur"), Label)
+                        Dim editControlsContainer As HtmlGenericControl = CType(dataItem.FindControl("editControlsContainer"), HtmlGenericControl)
+
+                        If lblRefFournisseur IsNot Nothing Then
+                            lblRefFournisseur.Text = nouvelleRef
+                            lblRefFournisseur.Style("display") = "inline-block"
+                        End If
+                        If editControlsContainer IsNot Nothing Then
+                            editControlsContainer.Style("display") = "none"
+                        End If
+
+                        ' Mise à jour de la correspondance LocPro en direct
+                        Dim lblCodePrestaLP As Telerik.Web.UI.RadLabel = CType(dataItem.FindControl("lblCodePrestaLP"), Telerik.Web.UI.RadLabel)
+                        If lblCodePrestaLP Is Nothing Then
+                            lblCodePrestaLP = CType(dataItem.FindControl("lblCodePrestaLPDemat"), Telerik.Web.UI.RadLabel)
+                        End If
+
+                        Dim btnAjouterRegle As Telerik.Web.UI.RadButton = CType(dataItem.FindControl("btnAjouterRegle"), Telerik.Web.UI.RadButton)
+                        If btnAjouterRegle Is Nothing Then
+                            btnAjouterRegle = CType(dataItem.FindControl("btnAjouterRegleDemat"), Telerik.Web.UI.RadButton)
+                        End If
+
+                        If lblCodePrestaLP IsNot Nothing AndAlso btnAjouterRegle IsNot Nothing Then
+                            Dim codeFournisseur As String = ""
+                            Dim numOR As String = ""
+                            Dim numFacture As String = ""
+                            Dim descr As String = ""
+                            
+                            If dataItem("Descr") IsNot Nothing Then
+                                descr = dataItem("Descr").Text.Replace("&nbsp;", "").Trim()
+                            End If
+
+                            ' Extraction fiable des clés via DataKeyValues (définis dans DataKeyNames="NumOR,NumFacture,NumLig")
+                            If dataItem.OwnerTableView.DataKeyNames.Contains("NumOR") Then
+                                numOR = dataItem.GetDataKeyValue("NumOR").ToString()
+                            End If
+                            If dataItem.OwnerTableView.DataKeyNames.Contains("NumFacture") Then
+                                numFacture = dataItem.GetDataKeyValue("NumFacture").ToString()
+                            End If
+
+                            ' Récupération du code fournisseur depuis la base de données (Historique)
+                            codeFournisseur = GestionnaireBddFacture.GetCodeFournisseur(numOR, numFacture)
+
+                            ' Si introuvable (ex: facture Demat), récupération via SIRET/SIREN
+                            If String.IsNullOrEmpty(codeFournisseur) Then
+                                Dim dtFact = GestionnaireBddFacture.GetFactureDematById(idFacture)
+                                If dtFact IsNot Nothing AndAlso dtFact.Rows.Count > 0 Then
+                                    Dim siret As String = dtFact.Rows(0)("Siret_Vend").ToString().Replace(" ", "").Trim()
+                                    Dim siren As String = dtFact.Rows(0)("Siren_Vend").ToString().Replace(" ", "").Trim()
+                                    
+                                    Dim dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siret, "")
+                                    If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
+                                        codeFournisseur = dtFourn.Rows(0)("F050KY").ToString().Trim()
+                                    Else
+                                        dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren("", siren)
+                                        If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
+                                            codeFournisseur = dtFourn.Rows(0)("F050KY").ToString().Trim()
+                                        End If
+                                    End If
+                                End If
+                            End If
+                            
+                            btnAjouterRegle.CommandArgument = numOR & "|" & numFacture & "|" & nouvelleRef & "|" & codeFournisseur & "|" & descr
+                            
+                            Dim codePrestaLP As String = ""
+                            If Not String.IsNullOrEmpty(codeFournisseur) Then
+                                Dim regleJson As Newtonsoft.Json.Linq.JObject = GestionnaireBddFacture.GetRegleCorrespondance(codeFournisseur, nouvelleRef)
+                                If regleJson IsNot Nothing AndAlso regleJson("prestations") IsNot Nothing Then
+                                    Dim codes As New List(Of String)()
+                                    For Each p In regleJson("prestations")
+                                        codes.Add(p("code").ToString())
+                                    Next
+                                    codePrestaLP = String.Join(", ", codes)
+                                End If
+                            End If
+
+                            lblCodePrestaLP.Text = codePrestaLP
+                            If String.IsNullOrEmpty(codePrestaLP) Then
+                                btnAjouterRegle.Visible = True
+                            Else
+                                btnAjouterRegle.Visible = False
+                            End If
+                        End If
+
+                        ' Retirer le ScriptManager qui forçait la grille parente à se recharger pour éviter d'effacer les autres lignes
                     End If
                 End If
 
@@ -696,11 +799,10 @@ Partial Class integrationFactures
                     Dim numOR As String = args(0)
                     Dim numFacture As String = args(1)
                     Dim codePrestaFournisseur As String = args(2)
-                    Dim descr As String = args(3)
-                    Dim codeFournisseur As String = ""
-
+                    Dim codeFournisseur As String = args(3)
+                    Dim descr As String = ""
                     If args.Length >= 5 Then
-                        codeFournisseur = args(4)
+                        descr = String.Join("|", args.Skip(4).ToArray())
                     End If
 
                     If String.IsNullOrEmpty(codeFournisseur) Then
@@ -762,12 +864,11 @@ Partial Class integrationFactures
                     If Not IsDBNull(dt.Rows(0)("Statut")) Then
                         statutActuel = dt.Rows(0)("Statut").ToString().ToUpper()
                     End If
-                    
+
                     Dim lblIntegrationResult As Label = CType(rwIntegrationResult.ContentContainer.FindControl("lblIntegrationResult"), Label)
                     Dim ctrl As Control = CType(sender, Control)
                     Dim scriptOpen As String = "setTimeout(function(){ var w = $find('" & rwIntegrationResult.ClientID & "'); if(w) w.show(); }, 100);"
-                    
-                    ' Anti-refresh F5 : on compare le token envoyé par le client avec celui en session
+
                     ' Anti-refresh F5 : on récupère le token envoyé par le client
                     Dim currentToken As String = ""
                     For Each key As String In Request.Form.AllKeys
@@ -779,7 +880,7 @@ Partial Class integrationFactures
 
                     Dim sessionKeyToken As String = "ActionToken_" & idFacture
                     Dim isRealClick As Boolean = (Session(sessionKeyToken) Is Nothing OrElse Session(sessionKeyToken).ToString() <> currentToken)
-                    
+
                     ' Si la facture est déjà intégrée
                     If statutActuel = "SUCCES" OrElse statutActuel = "INTEGREE" Then
                         If Not isRealClick Then
@@ -795,7 +896,7 @@ Partial Class integrationFactures
                             Exit Select
                         End If
                     End If
-                    
+
                     Session(sessionKeyToken) = currentToken
 
                     Dim resultat = ServiceReintegration.ReintegrerFactureDemat(dt.Rows(0))
@@ -817,7 +918,7 @@ Partial Class integrationFactures
 
                 If txtSiren IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(txtSiren.Text) Then
                     Dim nouveauSiren As String = txtSiren.Text.Trim()
-                    
+
                     ' Validation : 9 ou 14 chiffres uniquement
                     If Not IsNumeric(nouveauSiren) OrElse (nouveauSiren.Length <> 9 AndAlso nouveauSiren.Length <> 14) Then
                         Dim lblSiretMsgErr As Label = CType(dataItem.FindControl("lblSiretMsg"), Label)
@@ -837,11 +938,74 @@ Partial Class integrationFactures
                     If succes Then
                         ' Mettre à jour en base UNIQUEMENT si le fournisseur existe dans LocPro
                         GestionnaireBddFacture.UpdateSirenDemat(idFacture, nouveauSiren)
-                        
+
                         txtSiren.Style("border") = ""
 
-                        ' Recharger la grille pour afficher le fournisseur
-                        CType(sender, RadGrid).Rebind()
+                        Dim lblSiretMsgSuccess As Label = CType(dataItem.FindControl("lblSiretMsg"), Label)
+                        If lblSiretMsgSuccess IsNot Nothing Then
+                            lblSiretMsgSuccess.Visible = False
+                            lblSiretMsgSuccess.Text = ""
+                        End If
+
+                        ' Mettre à jour l'affichage en ligne SANS Rebind
+                        Dim lblSirenText As Label = CType(dataItem.FindControl("lblSirenText"), Label)
+                        If lblSirenText Is Nothing Then
+                            lblSirenText = CType(dataItem.FindControl("lblSirenTextDemat"), Label)
+                        End If
+                        Dim editSirenContainer As HtmlGenericControl = CType(dataItem.FindControl("editSirenContainer"), HtmlGenericControl)
+                        If editSirenContainer Is Nothing Then
+                            editSirenContainer = CType(dataItem.FindControl("editSirenContainerDemat"), HtmlGenericControl)
+                        End If
+
+                        If lblSirenText IsNot Nothing Then
+                            lblSirenText.Text = nouveauSiren
+                            lblSirenText.Style("display") = "inline-block"
+                        End If
+                        If editSirenContainer IsNot Nothing Then
+                            editSirenContainer.Style("display") = "none"
+                        End If
+
+                        ' Mettre à jour le nom et code fournisseur (s'ils existent dans la ligne)
+                        Dim dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(nouveauSiren, nouveauSiren)
+                        If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
+                            Dim nomLocPro As String = dtFourn.Rows(0)("F050NOM").ToString().Trim()
+                            Dim codeLocPro As String = dtFourn.Rows(0)("F050KY").ToString().Trim()
+
+                            Dim cellFournisseur As TableCell = dataItem("ColRaisonSociale")
+                            If cellFournisseur IsNot Nothing Then
+                                Dim lblFournisseur As Label = CType(cellFournisseur.FindControl("lblFournisseur"), Label)
+                                If lblFournisseur IsNot Nothing Then
+                                    lblFournisseur.Text = nomLocPro
+                                    lblFournisseur.Visible = True
+                                End If
+                            End If
+
+                            Dim cellCodeFournisseur As TableCell = Nothing
+                            If dataItem.OwnerTableView.Columns.FindByUniqueNameSafe("ColCodeFournisseur") IsNot Nothing Then
+                                cellCodeFournisseur = dataItem("ColCodeFournisseur")
+                            End If
+                            If cellCodeFournisseur IsNot Nothing Then
+                                Dim lblCodeFournisseur As Label = CType(cellCodeFournisseur.FindControl("lblCodeFournisseur"), Label)
+                                If lblCodeFournisseur IsNot Nothing Then
+                                    lblCodeFournisseur.Text = codeLocPro
+                                    lblCodeFournisseur.Visible = True
+                                End If
+                            End If
+                        End If
+
+                        ' Mettre à jour le statut de la facture sur l'UI
+                        Dim dtFacture = GestionnaireBddFacture.GetFactureDematById(idFacture)
+                        If dtFacture IsNot Nothing AndAlso dtFacture.Rows.Count > 0 Then
+                            Dim newStatut As String = dtFacture.Rows(0)("Statut").ToString()
+                            Dim lblStatut As Label = CType(dataItem.FindControl("lblStatutDemat"), Label)
+                            If lblStatut Is Nothing Then
+                                lblStatut = CType(dataItem.FindControl("lblStatut"), Label)
+                            End If
+                            If lblStatut IsNot Nothing Then
+                                lblStatut.Text = newStatut
+                                lblStatut.CssClass = "statut-badge statut-" & newStatut.ToLower()
+                            End If
+                        End If
                     Else
                         Dim lblSiretMsg As Label = CType(dataItem.FindControl("lblSiretMsg"), Label)
                         If lblSiretMsg IsNot Nothing Then
@@ -866,13 +1030,13 @@ Partial Class integrationFactures
 
             Dim txtSiren As TextBox = CType(item.FindControl("txtSirenDemat"), TextBox)
             Dim btnValiderSiren As RadButton = CType(item.FindControl("btnValiderSirenDemat"), RadButton)
-            
+
             Dim lblFournisseur As Label = Nothing
             Dim cellFournisseur As TableCell = item("ColRaisonSociale")
             If cellFournisseur IsNot Nothing Then
                 lblFournisseur = CType(cellFournisseur.FindControl("lblFournisseur"), Label)
             End If
-            
+
             Dim lblCodeFournisseur As Label = Nothing
             Dim cellCodeFournisseur As TableCell = Nothing
             If item.OwnerTableView.Columns.FindByUniqueNameSafe("ColCodeFournisseur") IsNot Nothing Then
@@ -888,7 +1052,7 @@ Partial Class integrationFactures
 
             Dim sirenBase As String = ""
             Dim siretBase As String = ""
-            
+
             If item.DataItem IsNot Nothing Then
                 Dim drv As System.Data.DataRowView = TryCast(item.DataItem, System.Data.DataRowView)
                 If drv IsNot Nothing Then
@@ -900,13 +1064,13 @@ Partial Class integrationFactures
                     End If
                 End If
             End If
-            
+
             ' On vérifie si le fournisseur existe dans LocPro en testant d'abord le SIRET puis le SIREN
             Dim existeDansLocPro As Boolean = False
             Dim nomFournisseurLocPro As String = ""
             Dim codeFournisseurLocPro As String = ""
             Dim valeurAffichage As String = ""
-            
+
             Dim dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siretBase, "")
             If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
                 existeDansLocPro = True
@@ -938,22 +1102,29 @@ Partial Class integrationFactures
             End If
 
             Dim lblSirenText As Label = CType(item.FindControl("lblSirenText"), Label)
-            
+            If lblSirenText Is Nothing Then
+                lblSirenText = CType(item.FindControl("lblSirenTextDemat"), Label)
+            End If
+
+            Dim editSirenContainer As HtmlGenericControl = CType(item.FindControl("editSirenContainer"), HtmlGenericControl)
+            If editSirenContainer Is Nothing Then
+                editSirenContainer = CType(item.FindControl("editSirenContainerDemat"), HtmlGenericControl)
+            End If
+
             If existeDansLocPro Then
                 ' Fournisseur trouvé : On affiche le SIREN/SIRET en texte plat et on cache l'input
                 If lblSirenText IsNot Nothing Then
                     lblSirenText.Text = valeurAffichage
-                    lblSirenText.Visible = True
+                    lblSirenText.Style("display") = "inline-block"
                 End If
-                txtSiren.Visible = False
-                btnValiderSiren.Visible = False
-                
+                If editSirenContainer IsNot Nothing Then editSirenContainer.Style("display") = "none"
+
                 ' La colonne NOM FOURNISSEUR affiche Nom Fournisseur Locpro
                 If lblFournisseur IsNot Nothing Then
                     lblFournisseur.Text = nomFournisseurLocPro
                     lblFournisseur.Visible = True
                 End If
-                
+
                 ' La colonne CODE FRN affiche le Code Fournisseur Locpro
                 If lblCodeFournisseur IsNot Nothing Then
                     lblCodeFournisseur.Text = codeFournisseurLocPro
@@ -962,11 +1133,10 @@ Partial Class integrationFactures
             Else
                 ' Fournisseur introuvable : On affiche l'input avec le SIREN dedans, et on VIDE le nom et le code
                 If lblSirenText IsNot Nothing Then
-                    lblSirenText.Visible = False
+                    lblSirenText.Style("display") = "none"
                 End If
-                txtSiren.Visible = True
-                btnValiderSiren.Visible = True
-                
+                If editSirenContainer IsNot Nothing Then editSirenContainer.Style("display") = "inline-block"
+
                 If lblFournisseur IsNot Nothing Then
                     lblFournisseur.Visible = False
                     lblFournisseur.Text = ""

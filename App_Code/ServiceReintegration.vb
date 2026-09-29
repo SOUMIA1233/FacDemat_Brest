@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Collections.Generic
 Imports System.Data
 Imports System.Threading.Tasks
@@ -398,6 +398,9 @@ Public Class ServiceReintegration
                 Throw New Exception("Échec création facture LocPro")
             End If
             GestionnaireLog.Info("Facture Demat " & numFacture & " - Facture créée (ID: " & pkFacLocPro & ")")
+
+            ' Sauvegarder l'ID de la facture Locpro dans notre DB
+            GestionnaireBddFacture.MettreAJourIdFactureLocpro(idFacture, pkFacLocPro)
 
             ' ÉTAPE 2 : Créer les prestations
             Dim nbPrestations As Integer = CreerPrestationsLocProDemat(pkFacLocPro, idFacture, infosFour.CodeFournisseur)
@@ -814,8 +817,9 @@ Public Class ServiceReintegration
 
             Dim codeFournisseur As String = ""
             Dim raisonSociale As String = ""
-            
-            Dim dtFourn As DataTable = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siret, "")
+
+            ' On passe 'siret' aux deux paramètres, car la valeur saisie peut être un SIRET (14) ou un SIREN (9)
+            Dim dtFourn As DataTable = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siret, siret)
             If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
                 codeFournisseur = dtFourn.Rows(0)("F050KY").ToString().Trim()
                 If dtFourn.Columns.Contains("F050NOM") Then
@@ -833,8 +837,8 @@ Public Class ServiceReintegration
             GestionnaireLog.Info("Fournisseur trouve : " & codeFournisseur)
 
             ' Mise à jour de la raison sociale pour l'affichage IHM
-            If Not String.IsNullOrEmpty(raisonSociale) Then
-                GestionnaireBddFacture.MettreAJourRaisonSocialeDemat(idFacture, raisonSociale)
+            If Not String.IsNullOrEmpty(codeFournisseur) Then
+                GestionnaireBddFacture.MettreAJourInfosLocproDemat(idFacture, codeFournisseur, raisonSociale)
             End If
 
             Dim lignes As DataTable = GestionnaireBddFacture.getDematFacturesLignes(idFacture)
