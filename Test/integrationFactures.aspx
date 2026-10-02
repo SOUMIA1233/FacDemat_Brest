@@ -778,6 +778,110 @@
                                     KeepInScreenBounds="true" CenterIfModal="true" ShowContentDuringLoad="false">
                                 </telerik:RadWindow>
 
+                                <telerik:RadWindow ID="rwChangementStatutCycle" runat="server"
+                                    Title="Détails du changement de statut" Width="550px" Height="500px" Modal="true"
+                                    Behaviors="Close,Move" VisibleStatusbar="false" Skin="MetroTouch"
+                                    KeepInScreenBounds="true" CenterIfModal="true">
+                                    <ContentTemplate>
+                                        <div
+                                            style="padding: 20px; font-family: 'Segoe UI', Tahoma, sans-serif; line-height: 1.6; color: #333;">
+                                            <asp:HiddenField ID="hdnPopupIdFacture" runat="server" />
+                                            <asp:HiddenField ID="hdnPopupNouveauStatut" runat="server" />
+
+                                            <div id="divRejectionDetails" runat="server" style="margin-bottom: 15px;">
+                                                <label
+                                                    style="display: block; font-weight: bold; margin-bottom: 5px;">Motif
+                                                    (Rejection Code) :</label>
+                                                <telerik:RadDropDownList ID="ddlStatutRejectionCode" runat="server"
+                                                    Width="100%">
+                                                    <Items>
+                                                        <telerik:DropDownListItem Text="Sélectionner..." Value="" />
+                                                        <telerik:DropDownListItem
+                                                            Text="Justificatif absent ou insuffisant"
+                                                            Value="JUSTIF_ABS" />
+                                                        <telerik:DropDownListItem Text="Erreur de coordonnées bancaires"
+                                                            Value="COORD_BANC_ERR" />
+                                                        <telerik:DropDownListItem Text="Montant Total erroné"
+                                                            Value="MONTANTTOTAL_ERR" />
+                                                        <telerik:DropDownListItem Text="Facture en doublon"
+                                                            Value="DOUBLON" />
+                                                        <telerik:DropDownListItem Text="Taux de TVA erroné"
+                                                            Value="TX_TVA_ERR" />
+                                                        <telerik:DropDownListItem Text="N° de COMMANDE manquant"
+                                                            Value="CMD_ERR" />
+                                                        <telerik:DropDownListItem Text="Autre" Value="AUTRE" />
+                                                    </Items>
+                                                </telerik:RadDropDownList>
+
+                                                <label
+                                                    style="display: block; font-weight: bold; margin-top: 10px; margin-bottom: 5px;">Détail
+                                                    du motif :</label>
+                                                <telerik:RadTextBox ID="txtStatutRejectionMessage" runat="server"
+                                                    Width="100%" MaxLength="250" EmptyMessage="Précisez le motif...">
+                                                </telerik:RadTextBox>
+
+                                                <label
+                                                    style="display: block; font-weight: bold; margin-top: 10px; margin-bottom: 5px;">Action
+                                                    attendue :</label>
+                                                <telerik:RadDropDownList ID="ddlStatutExpectedAction" runat="server"
+                                                    Width="100%">
+                                                    <Items>
+                                                        <telerik:DropDownListItem Text="Sélectionner..." Value="" />
+                                                        <telerik:DropDownListItem Text="Fournir des informations"
+                                                            Value="PIN" />
+                                                        <telerik:DropDownListItem Text="Emettre une nouvelle facture"
+                                                            Value="NIN" />
+                                                        <telerik:DropDownListItem Text="Réaliser un avoir total"
+                                                            Value="CNF" />
+                                                        <telerik:DropDownListItem Text="Envoyer une pièce jointe"
+                                                            Value="NPJ" />
+                                                        <telerik:DropDownListItem Text="Autre action (préciser en note)"
+                                                            Value="OTH" />
+                                                        <telerik:DropDownListItem Text="Pas d'action attendue"
+                                                            Value="NOA" />
+                                                    </Items>
+                                                </telerik:RadDropDownList>
+                                            </div>
+
+                                            <div
+                                                style="margin-bottom: 15px; border-top: 1px solid #ccc; padding-top: 15px;">
+                                                <label
+                                                    style="display: block; font-weight: bold; margin-bottom: 5px;">Commentaire
+                                                    (Note) :</label>
+                                                <telerik:RadTextBox ID="txtStatutNote" runat="server"
+                                                    TextMode="MultiLine" Width="100%" Height="60px"
+                                                    EmptyMessage="Saisissez un commentaire (ex: pour action attendue)">
+                                                </telerik:RadTextBox>
+                                            </div>
+
+                                            <div style="text-align: right; margin-top: 20px;">
+                                                <telerik:RadButton ID="btnValiderChangementStatut" runat="server"
+                                                    Text="Valider le changement"
+                                                    OnClick="btnValiderChangementStatut_Click" Skin="MetroTouch"
+                                                    Primary="true"></telerik:RadButton>
+                                                <telerik:RadButton ID="btnAnnulerChangementStatut" runat="server"
+                                                    Text="Annuler" AutoPostBack="false"
+                                                    OnClientClicking="closeStatutPopup" Skin="MetroTouch">
+                                                </telerik:RadButton>
+                                            </div>
+                                        </div>
+                                    </ContentTemplate>
+                                </telerik:RadWindow>
+                                <telerik:RadCodeBlock runat="server">
+                                    <script type="text/javascript">
+                                        function closeStatutPopup(sender, args) {
+                                            var wnd = $find("<%= rwChangementStatutCycle.ClientID %>");
+                                            if (wnd) wnd.close();
+                                        }
+                                        function openStatutPopup() {
+                                            setTimeout(function () {
+                                                var wnd = $find("<%= rwChangementStatutCycle.ClientID %>");
+                                                if (wnd) { wnd.show(); wnd.center(); }
+                                            }, 100);
+                                        }
+                                    </script>
+                                </telerik:RadCodeBlock>
+
                                 <p>Veuillez téléverser les pdfs des factures à intégrer.
                                 </p>
                                 <telerik:RadAsyncUpload runat="server" ID="rtb_repertoire"

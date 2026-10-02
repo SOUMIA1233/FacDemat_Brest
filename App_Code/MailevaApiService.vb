@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Collections.Generic
 Imports System.Configuration
 Imports System.Net.Http
@@ -53,7 +53,7 @@ Namespace Services
         ''' <summary>
         ''' Crée un fichier CDAR et le soumet pour mettre à jour le statut de cycle de vie
         ''' </summary>
-        Public Async Function MettreAJourStatutCycleDeVieAsync(incomingInvoiceId As String, nouveauStatut As String) As Task
+        Public Async Function MettreAJourStatutCycleDeVieAsync(incomingInvoiceId As String, nouveauStatut As String, Optional note As String = "", Optional rejectionCode As String = "", Optional rejectionMessage As String = "", Optional expectedAction As String = "") As Task
             Dim token As String = Await GetAccessTokenAsync()
             Dim baseUrl As String = ConfigurationManager.AppSettings("Maileva_LifecycleBaseUrl")
 
@@ -66,7 +66,24 @@ Namespace Services
             cdarPayload.Add("name", "Mise a jour manuelle du statut")
             cdarPayload.Add("role", "BY")
             cdarPayload.Add("lifecycle_status", nouveauStatut)
-            cdarPayload.Add("note", "")
+            
+            If Not String.IsNullOrEmpty(note) Then
+                cdarPayload.Add("note", note)
+            Else
+                cdarPayload.Add("note", "")
+            End If
+
+            If Not String.IsNullOrEmpty(rejectionCode) Then
+                Dim rejectionDetails As New JObject()
+                rejectionDetails.Add("code", rejectionCode)
+                If Not String.IsNullOrEmpty(rejectionMessage) Then
+                    rejectionDetails.Add("message", rejectionMessage)
+                End If
+                If Not String.IsNullOrEmpty(expectedAction) Then
+                    rejectionDetails.Add("expected_action", expectedAction)
+                End If
+                cdarPayload.Add("rejection_details", rejectionDetails)
+            End If
 
             Dim jsonPayload As String = cdarPayload.ToString(Formatting.None)
             Dim content As New StringContent(jsonPayload, Encoding.UTF8, "application/json")
