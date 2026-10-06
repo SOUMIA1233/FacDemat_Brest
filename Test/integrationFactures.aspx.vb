@@ -1,4 +1,4 @@
-﻿Imports System.IO
+Imports System.IO
 Imports Telerik.Web.UI
 Imports System
 
@@ -627,7 +627,7 @@ Partial Class integrationFactures
                             ElseIf drv.Row.Table.Columns.Contains("CodeFournisseur") AndAlso Not IsDBNull(drv("CodeFournisseur")) Then
                                 codeFournisseur = drv("CodeFournisseur").ToString().Trim()
                             End If
-                            
+
                             If String.IsNullOrEmpty(codeFournisseur) Then
                                 codeFournisseur = GestionnaireBddFacture.GetCodeFournisseur(numOR, numFacture)
                             End If
@@ -731,7 +731,7 @@ Partial Class integrationFactures
                             Dim numOR As String = ""
                             Dim numFacture As String = ""
                             Dim descr As String = ""
-                            
+
                             If dataItem("Descr") IsNot Nothing Then
                                 descr = dataItem("Descr").Text.Replace("&nbsp;", "").Trim()
                             End If
@@ -753,7 +753,7 @@ Partial Class integrationFactures
                                 If dtFact IsNot Nothing AndAlso dtFact.Rows.Count > 0 Then
                                     Dim siret As String = dtFact.Rows(0)("Siret_Vend").ToString().Replace(" ", "").Trim()
                                     Dim siren As String = dtFact.Rows(0)("Siren_Vend").ToString().Replace(" ", "").Trim()
-                                    
+
                                     Dim dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siret, "")
                                     If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
                                         codeFournisseur = dtFourn.Rows(0)("F050KY").ToString().Trim()
@@ -765,9 +765,9 @@ Partial Class integrationFactures
                                     End If
                                 End If
                             End If
-                            
+
                             btnAjouterRegle.CommandArgument = numOR & "|" & numFacture & "|" & nouvelleRef & "|" & codeFournisseur & "|" & descr
-                            
+
                             Dim codePrestaLP As String = ""
                             If Not String.IsNullOrEmpty(codeFournisseur) Then
                                 Dim regleJson As Newtonsoft.Json.Linq.JObject = GestionnaireBddFacture.GetRegleCorrespondance(codeFournisseur, nouvelleRef)
@@ -788,7 +788,6 @@ Partial Class integrationFactures
                             End If
                         End If
 
-                        ' Retirer le ScriptManager qui forçait la grille parente à se recharger pour éviter d'effacer les autres lignes
                     End If
                 End If
 
@@ -993,6 +992,15 @@ Partial Class integrationFactures
                             End If
                         End If
 
+                        ' Recharger les lignes internes pour propager le nouveau code fournisseur (pour le popup etc.)
+                        Dim nestedViewItem As GridNestedViewItem = CType(dataItem.ChildItem, GridNestedViewItem)
+                        If nestedViewItem IsNot Nothing Then
+                            Dim rgLignesInternes As RadGrid = CType(nestedViewItem.FindControl("rgLignesInternes"), RadGrid)
+                            If rgLignesInternes IsNot Nothing Then
+                                rgLignesInternes.Rebind()
+                            End If
+                        End If
+
                         ' Mettre à jour le statut de la facture sur l'UI
                         Dim dtFacture = GestionnaireBddFacture.GetFactureDematById(idFacture)
                         If dtFacture IsNot Nothing AndAlso dtFacture.Rows.Count > 0 Then
@@ -1141,18 +1149,18 @@ Partial Class integrationFactures
                     lblFournisseur.Visible = False
                     lblFournisseur.Text = ""
                 End If
-                
+
                 If lblCodeFournisseur IsNot Nothing Then
                     lblCodeFournisseur.Visible = False
                     lblCodeFournisseur.Text = ""
                 End If
-                
+
                 ' Vider la cellule FOURNISSEUR elle-même si jamais le text est directement sur la cellule
                 Dim cellF As TableCell = item("ColRaisonSociale")
                 If cellF IsNot Nothing Then
                     cellF.Text = "&nbsp;"
                 End If
-                
+
                 If cellCodeFournisseur IsNot Nothing Then
                     cellCodeFournisseur.Text = "&nbsp;"
                 End If
@@ -1169,28 +1177,28 @@ Partial Class integrationFactures
     Protected Sub ddlStatutCycleDeVie_SelectedIndexChanged(sender As Object, e As DropDownListEventArgs)
         Dim ddl As RadDropDownList = CType(sender, RadDropDownList)
         Dim item As GridDataItem = CType(ddl.NamingContainer, GridDataItem)
-        
+
         Dim hdnIdFactureCycle As HiddenField = CType(item.FindControl("hdnIdFactureCycle"), HiddenField)
         If hdnIdFactureCycle IsNot Nothing Then
             Dim idFacture As String = hdnIdFactureCycle.Value
             Dim nouveauStatut As String = ddl.SelectedValue
-            
+
             ' Préparer la popup
             hdnPopupIdFacture.Value = idFacture
             hdnPopupNouveauStatut.Value = nouveauStatut
-            
+
             txtStatutNote.Text = ""
             txtStatutRejectionMessage.Text = ""
             ddlStatutRejectionCode.SelectedIndex = 0
             ddlStatutExpectedAction.SelectedIndex = 0
-            
+
             ' Afficher ou masquer les détails de rejet en fonction du statut
             If nouveauStatut = "REFUSED" OrElse nouveauStatut = "UNDER_QUERY" OrElse nouveauStatut = "ON_HOLD" Then
                 divRejectionDetails.Visible = True
             Else
                 divRejectionDetails.Visible = False
             End If
-            
+
             ' Ouvrir la popup
             ScriptManager.RegisterStartupScript(Me, Me.GetType(), "OpenStatutPopup", "openStatutPopup();", True)
         End If
@@ -1200,11 +1208,11 @@ Partial Class integrationFactures
         Dim idFacture As String = hdnPopupIdFacture.Value.Trim()
         Dim nouveauStatut As String = hdnPopupNouveauStatut.Value.Trim()
         Dim note As String = txtStatutNote.Text.Trim()
-        
+
         Dim rejectionCode As String = ""
         Dim rejectionMessage As String = ""
         Dim expectedAction As String = ""
-        
+
         If divRejectionDetails.Visible Then
             rejectionCode = ddlStatutRejectionCode.SelectedValue
             rejectionMessage = txtStatutRejectionMessage.Text.Trim()
@@ -1222,29 +1230,29 @@ Partial Class integrationFactures
             ' Message de succès global
             lbl_result.Text = "Statut Maileva mis à jour avec succès en " & nouveauStatut & "."
             lbl_result.ForeColor = System.Drawing.Color.Green
-            
+
             Dim messageJS As String = "alert('Statut Maileva mis à jour avec succès en " & nouveauStatut & "');"
             ScriptManager.RegisterStartupScript(Me, Me.GetType(), "alertSuccess", messageJS, True)
-            
+
             ' Rafraichir la grille pour refléter l'état
             rgFacturesDemat.Rebind()
-            
+
             ' Fermer la popup
             ScriptManager.RegisterStartupScript(Me, Me.GetType(), "CloseStatutPopup", "closeStatutPopup();", True)
-            
+
         Catch ex As Exception
             GestionnaireLog.Error("Erreur lors de la mise à jour du statut cycle de vie pour la facture " & idFacture & " : " & ex.Message)
-            
+
             Dim safeErrorMsg As String = ex.Message
             If safeErrorMsg.Contains("<html") OrElse safeErrorMsg.Contains("503") OrElse safeErrorMsg.Contains("502") Then
                 safeErrorMsg = "Service indisponible (Erreur serveur API Maileva)."
             ElseIf safeErrorMsg.Length > 150 Then
                 safeErrorMsg = safeErrorMsg.Substring(0, 150) & "..."
             End If
-            
+
             lbl_result.Text = "Erreur lors de la mise à jour du statut Maileva : " & Server.HtmlEncode(safeErrorMsg)
             lbl_result.ForeColor = System.Drawing.Color.Red
-            
+
             Dim errorJS As String = "alert('Erreur: " & safeErrorMsg.Replace("'", "\'") & "');"
             ScriptManager.RegisterStartupScript(Me, Me.GetType(), "alertError", errorJS, True)
         End Try

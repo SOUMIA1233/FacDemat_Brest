@@ -31,9 +31,6 @@
 <body>
     <form id="form1" runat="server">
         <telerik:RadScriptManager ID="RadScriptManager1" runat="server"></telerik:RadScriptManager>
-        <telerik:RadWindowManager ID="RadWindowManager1" runat="server" Skin="MetroTouch">
-            <Localization OK="Oui" Cancel="Non" />
-        </telerik:RadWindowManager>
         <!-- Contrôle utilisateur -->
         <uc:FormulaireCorrespondance ID="formulaire1" runat="server" />
     </form>

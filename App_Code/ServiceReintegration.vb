@@ -1,4 +1,5 @@
 ﻿Imports System
+Imports System.Activities.Expressions
 Imports System.Collections.Generic
 Imports System.Data
 Imports System.Threading.Tasks
@@ -406,7 +407,14 @@ Public Class ServiceReintegration
             Dim nbPrestations As Integer = CreerPrestationsLocProDemat(pkFacLocPro, idFacture, infosFour.CodeFournisseur)
             GestionnaireLog.Info("Facture Demat " & numFacture & " - " & nbPrestations & " prestation(s) créée(s)")
 
-            ' ÉTAPE 3 : Mettre à jour le statut en SUCCES
+            ' ÉTAPE 3 : Basculer le statut de la facture à 3
+            Dim payloadStatus = New With {
+                .id = pkFacLocPro,
+                .status = New With {.id = "3"}
+            }
+            APILP.APILocPro.updateInvoiceBillingStatus(pkFacLocPro, payloadStatus)
+
+            ' ÉTAPE 4 : Mettre à jour le statut en SUCCES en DB Locale
             GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "SUCCES", "Intégration réussie dans Locpro")
 
             GestionnaireLog.Info("Facture Demat " & numFacture & " - Statut: SUCCES")
@@ -440,39 +448,40 @@ Public Class ServiceReintegration
             Dim numFacture As String = factureRow("NumeroFacture").ToString().Trim()
             Dim societe As String = factureRow("SocieteEmet").ToString().Trim()
             Dim libelle As String = "Facture " & numFacture & " - " & societe
+            Dim currencyDoc As String = factureRow("Devise").ToString().Trim()
+
 
             Dim montantHT As Double = If(IsDBNull(factureRow("MontantHT")), 0, Convert.ToDouble(factureRow("MontantHT")))
             Dim montantTVA As Double = If(IsDBNull(factureRow("MontantTVA")), 0, Convert.ToDouble(factureRow("MontantTVA")))
             Dim montantTTC As Double = If(IsDBNull(factureRow("MontantTotal")), 0, Convert.ToDouble(factureRow("MontantTotal")))
 
-            Dim numOR As String = If(IsDBNull(factureRow("numOr")), "VD7802500014", factureRow("numOr").ToString().Trim())
-            If String.IsNullOrEmpty(numOR) Then numOR = "VD7802500014"
 
             Dim dateFacture As Date? = If(IsDBNull(factureRow("DateEmi")), Nothing, Convert.ToDateTime(factureRow("DateEmi")))
             Dim dateEcheance As Date? = If(IsDBNull(factureRow("DateEcheance")), Nothing, Convert.ToDateTime(factureRow("DateEcheance")))
 
-            Dim docNum As String = numFacture
-            If docNum.Length > 15 Then docNum = docNum.Substring(0, 15)
+            Dim numOR As String = If(factureRow.Table.Columns.Contains("numOr") AndAlso Not IsDBNull(factureRow("numOr")), factureRow("numOr").ToString().Trim(), Nothing)
+            If String.IsNullOrEmpty(numOR) Then numOR = Nothing
 
-            ' Note pour les tests : dans le cas où on a pas de dates, mettre la date d'aujourd'hui 
-            ' en prod il faut remettre strictement les dates : 
-            ' startDate = If(dateFacture.HasValue AndAlso dateFacture.Value > DateTime.MinValue, dateFacture.Value.ToString("yyyy-MM-ddTHH:mm:ss"), Nothing)
-            ' termDate = If(dateEcheance.HasValue AndAlso dateEcheance.Value > DateTime.MinValue, dateEcheance.Value.ToString("yyyy-MM-ddTHH:mm:ss"), Nothing)
+            Dim startDateStr As String = If(dateFacture.HasValue AndAlso dateFacture.Value > DateTime.MinValue, dateFacture.Value.ToString("yyyy-MM-ddTHH:mm:ss"), Nothing)
+            Dim termDateStr As String = If(dateEcheance.HasValue AndAlso dateEcheance.Value > DateTime.MinValue, dateEcheance.Value.ToString("yyyy-MM-ddTHH:mm:ss"), Nothing)
+
             Dim payload = New With {
                 .wording = libelle,
-                .documentNumber = docNum,
-                .billingNumber = numOR,
+                .documentNumber = numOR,
+                .billingNumber = numFacture,
                 .excludingTaxAmount = montantHT,
                 .excludingTaxAmountCurrency = montantHT,
                 .vatAmount = montantTVA,
                 .vatAmountCurrency = montantTVA,
                 .includingTaxAmount = montantTTC,
                 .includingTaxAmountCurrency = montantTTC,
-                .startDate = If(dateFacture.HasValue, dateFacture.Value, DateTime.Now).ToString("yyyy-MM-ddTHH:mm:ss"),
-                .termDate = "2026-12-31T00:00:00",
+                .startDate = startDateStr,
+                .termDate = termDateStr,
+                .documentType = New With {.id = "AC"},
                 .status = New With {.id = "2"},
                 .customer = New With {.id = codeFournisseur},
-                .accountingType = New With {.id = "1"}
+                .accountingType = New With {.id = "2"},
+                .currencyDoc = New With {.id = currencyDoc}
             }
 
             Dim pkFacture As String = APILP.APILocPro.createInvoice(payload)
@@ -513,8 +522,6 @@ Public Class ServiceReintegration
                         Dim jMontantHT As JObject = CType(jPresta("montant_ht"), JObject)
 
                         Dim montantHTParPresta As Double = CalculateurMontants.CalculerMontantDepuisJSON(jMontantHT, ligne)
-
-                        If montantHTParPresta = 0 Then Continue For
 
                         Dim tauxTVA As Double = Convert.ToDouble(ligne("TVA"))
                         Dim montantTVAParPresta As Double = montantHTParPresta * (tauxTVA / 100)
@@ -867,9 +874,6 @@ Public Class ServiceReintegration
 
                     Dim codesLocProString As String = String.Join(",", codesLocPro)
 
-                    Dim numOR As String = ligne("NumOR").ToString().Trim()
-                    Dim numFacture As String = ligne("NumFacture").ToString().Trim()
-                    GestionnaireBddFacture.MettreAJourCodesLocProLigne(numOR, numFacture, codePrestaFournisseur, codesLocProString)
                 Else
                     toutesLignesMatchees = False
                 End If

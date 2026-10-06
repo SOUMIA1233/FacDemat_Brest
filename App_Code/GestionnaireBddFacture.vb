@@ -7,9 +7,9 @@ Imports Newtonsoft.Json.Linq
 Imports SiteWeb
 
 Public Class GestionnaireBddFacture
-    Const BaseDeDonnees As String = "BASE_PROD"
+    Const BaseDeDonnees As String = "BASE_TEST"
     Const BaseDeDonneesTest As String = "BASE_TEST"
-    Const BaseDeDonneesLP As String = "LocPro"
+    Const BaseDeDonneesLP As String = "LocPro_Test"
     Const BaseDeDonneesLPTest As String = "LocPro_Test"
 
     Public Shared Function retournerInfosVeh(immat As String) As DataTable
@@ -821,7 +821,7 @@ Public Class GestionnaireBddFacture
     ''' </summary>
     Public Shared Function GetFactureDematById(idFacture As String) As DataTable
         Try
-            Dim sql As String = "SELECT IdFacture, NumeroFacture, SocieteEmet, numOr, MontantTotal, MontantHT, MontantTVA, DateEmi, DateEcheance, NumeroTVA_Vend, Siret_Vend, Siren_Vend, Statut " &
+            Dim sql As String = "SELECT IdFacture, NumeroFacture, SocieteEmet, numOr, MontantTotal, Devise, MontantHT, MontantTVA, DateEmi, DateEcheance, NumeroTVA_Vend, Siret_Vend, Siren_Vend, Statut " &
                                "FROM D_invoice " &
                                "WHERE IdFacture = '" & idFacture.Replace("'", "''") & "'"
 

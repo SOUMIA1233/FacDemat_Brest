@@ -110,12 +110,19 @@
                                     <div style="display: flex; align-items: center; gap: 15px;">
                                         <h2 style="margin: 0;">Factures Dématérialisées</h2>
                                     </div>
-                                    <a href="#" onclick="showInfoStatus(); return false;"
-                                        style="font-size: 13px; color: #007bff; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
-                                        <i class="info-icon"
-                                            style="background:#007bff; width: 14px; height: 14px; line-height: 14px; font-size: 11px;">i</i>
-                                        <span>Comprendre le processus de cycle de vie</span>
-                                    </a>
+                                    <div style="display: inline-flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                        <a href="#" onclick="showInfoStatus(); return false;"
+                                            style="font-size: 13px; color: #007bff; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+                                            <i class="info-icon"
+                                                style="background:#007bff; width: 14px; height: 14px; line-height: 14px; font-size: 11px;">i</i>
+                                            <span>Comprendre le processus de cycle de vie</span>
+                                        </a>
+                                        <a href="ManuelUtilisation.pdf" target="_blank"
+                                            style="font-size: 13px; color: #e67e22; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid #e67e22; border-radius: 4px;">
+                                            <span>&#x1F4C4;</span>
+                                            <span>Manuel d'utilisation</span>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1124,6 +1131,13 @@
                                                     totalement par l'acheteur. Le paiement est validé
                                                 </li>
                                             </ul>
+                                            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #dee2e6; text-align: center;">
+                                                <a href="ManuelUtilisation.pdf" target="_blank"
+                                                    style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; background-color: #e67e22; color: white; text-decoration: none; border-radius: 5px; font-size: 14px; font-weight: bold;">
+                                                    <span>&#x1F4C4;</span>
+                                                    <span>Consulter le manuel d'utilisation complet (PDF)</span>
+                                                </a>
+                                            </div>
                                         </div>
                                     </ContentTemplate>
                                 </telerik:RadWindow>
