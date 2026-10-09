@@ -1,5 +1,5 @@
-﻿<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
-    MaintainScrollPositionOnPostback="true" Title="Intégration de Factures fournisseur"
+<%@ Page Language="VB" Async="true" AutoEventWireup="false" MasterPageFile="~/MPIntranet.master"
+    Title="Intégration de Factures fournisseur"
     CodeFile="integrationFactures.aspx.vb" Inherits="integrationFactures" Culture="fr-FR" UICulture="fr-FR"
     CodePage="65001" %>
     <%@ Register TagPrefix="telerik" Namespace="Telerik.Web.UI" Assembly="Telerik.Web.UI" %>
@@ -174,10 +174,37 @@
                                                 txt.focus();
                                             }
                                         }
+                                        function OnRowExpanding_LazyLoadPdf(sender, args) {
+                                            try {
+                                                var item = args.get_gridDataItem ? args.get_gridDataItem() : args.get_item();
+                                                if (item) {
+                                                    var tr = item.get_element();
+                                                    var nextTr = tr.nextElementSibling || tr.nextSibling;
+                                                    while (nextTr && nextTr.nodeType !== 1) {
+                                                        nextTr = nextTr.nextSibling;
+                                                    }
+                                                    if (nextTr && nextTr.tagName === "TR") {
+                                                        var iframes = nextTr.getElementsByTagName("iframe");
+                                                        for (var i = 0; i < iframes.length; i++) {
+                                                            var iframe = iframes[i];
+                                                            var dataSrc = iframe.getAttribute("data-src");
+                                                            if (dataSrc && !iframe.getAttribute("src")) {
+                                                                iframe.setAttribute("src", dataSrc);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } catch (e) {
+                                                console.error("Erreur LazyLoadPdf:", e);
+                                            }
+                                        }
                                     </script>
                                     <telerik:RadGrid ID="rgFacturesDemat" runat="server" AutoGenerateColumns="False"
                                         Width="100%" AllowPaging="True" PageSize="20" Skin="MetroTouch"
                                         CssClass="factures-grid" Style="font-size: 13px;">
+                                        <ClientSettings>
+                                            <ClientEvents OnHierarchyExpanding="OnRowExpanding_LazyLoadPdf" />
+                                        </ClientSettings>
                                         <MasterTableView DataKeyNames="IdFacture" CommandItemDisplay="None"
                                             HierarchyLoadMode="Client" RetainExpandStateOnRebind="true">
                                             <Columns>
@@ -206,6 +233,11 @@
                                                             CssClass="label-fournisseur"
                                                             Style="white-space: normal; line-height: 1.1; font-weight: bold;">
                                                         </asp:Label>
+                                                        <telerik:RadDropDownList ID="ddlChoixFournisseur" runat="server" Visible="false" AutoPostBack="true" OnSelectedIndexChanged="ddlChoixFournisseur_SelectedIndexChanged" Width="100%" DropDownWidth="250px" Style="font-size: 11px;">
+                                                            <ItemTemplate>
+                                                                <%# DirectCast(Container, Telerik.Web.UI.DropDownListItem).Text %> - <%# DirectCast(Container, Telerik.Web.UI.DropDownListItem).Attributes("Nom") %>
+                                                            </ItemTemplate>
+                                                        </telerik:RadDropDownList>
                                                     </ItemTemplate>
                                                 </telerik:GridTemplateColumn>
 
@@ -471,7 +503,7 @@
                                                     <div id="divPdfViewer" runat="server"
                                                         style="flex:1; padding-left:10px; border-left:1px solid #ccc;">
                                                         <iframe id="iframePdf" runat="server"
-                                                            src='<%# "DownloadPdf.ashx?id=" & Eval("IdFacture").ToString() %>'
+                                                            data-src='<%# "DownloadPdf.ashx?id=" & Eval("IdFacture").ToString() %>'
                                                             width="100%" height="100%" style="border:none;"></iframe>
                                                     </div>
                                                 </div>
@@ -757,7 +789,7 @@
                                                     <div id="divPdfViewer" runat="server"
                                                         style="flex:1; padding-left:10px; border-left:1px solid #ccc;">
                                                         <iframe id="iframePdf" runat="server"
-                                                            src='<%# "DownloadPdf.ashx?id=" & Eval("IdFacture").ToString() %>'
+                                                            data-src='<%# "DownloadPdf.ashx?id=" & Eval("IdFacture").ToString() %>'
                                                             width="100%" height="100%" style="border:none;"></iframe>
                                                     </div>
                                                 </div>
@@ -778,7 +810,6 @@
                             <h1>Intégration de Factures fournisseur</h1>
                             <telerik:RadAjaxLoadingPanel runat="server" ID="LoadingPanel"></telerik:RadAjaxLoadingPanel>
                             <telerik:RadAjaxPanel ID="RadAjaxPanel1" LoadingPanelID="LoadingPanel" runat="server">
-                                <!-- RadWindow déplacé en haut pour éviter le saut de page vers le bas lors du focus natif du navigateur -->
                                 <telerik:RadWindow ID="rwFormulaireCorrespondance" runat="server"
                                     Title="Ajouter une correspondance prestation" Width="1050px" Height="800px"
                                     Modal="true" Behaviors="Close,Move" VisibleStatusbar="false" Skin="MetroTouch"
@@ -921,6 +952,9 @@
 
                                 <telerik:RadGrid ID="rgHistoriqueFactures" runat="server" AutoGenerateColumns="False"
                                     AllowPaging="True" PageSize="20" Skin="MetroTouch" CssClass="factures-grid">
+                                    <ClientSettings>
+                                        <ClientEvents OnHierarchyExpanding="OnRowExpanding_LazyLoadPdf" />
+                                    </ClientSettings>
                                     <MasterTableView DataKeyNames="NumOR,NumFacture" CommandItemDisplay="Top"
                                         HierarchyLoadMode="Client" RetainExpandStateOnRebind="true">
                                         <CommandItemSettings ShowRefreshButton="true" ShowAddNewRecordButton="false" />
@@ -1131,7 +1165,8 @@
                                                     totalement par l'acheteur. Le paiement est validé
                                                 </li>
                                             </ul>
-                                            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #dee2e6; text-align: center;">
+                                            <div
+                                                style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #dee2e6; text-align: center;">
                                                 <a href="ManuelUtilisation.pdf" target="_blank"
                                                     style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; background-color: #e67e22; color: white; text-decoration: none; border-radius: 5px; font-size: 14px; font-weight: bold;">
                                                     <span>&#x1F4C4;</span>

@@ -10,10 +10,27 @@ Partial Class integrationFactures
         rwIntegrationResult.VisibleOnPageLoad = False
 
         If Not IsPostBack Then
+            Dim swPageLoad As New System.Diagnostics.Stopwatch()
+            swPageLoad.Start()
+            
             ChargerHistorique()
+            Dim tempsHistorique As Long = swPageLoad.ElapsedMilliseconds
+            
+            ' On lance la vérification en arrière-plan pour ne pas bloquer l'affichage de la page
+            System.Threading.Tasks.Task.Run(Sub()
+                                                Try
+                                                    ServiceReintegration.VerifierFacturesDematParLot()
+                                                Catch ex As Exception
+                                                    GestionnaireLog.Error("Erreur tache de fond VerifierFacturesDematParLot: " & ex.Message)
+                                                End Try
+                                            End Sub)
+            
+            Dim tempsVerification As Long = swPageLoad.ElapsedMilliseconds - tempsHistorique
+            
+            swPageLoad.Stop()
+            GestionnaireLog.Info("[PERFORMANCE] Page_Load (IsPostBack=False) - ChargerHistorique: " & tempsHistorique & "ms, VerifierFacturesDematParLot: lance_en_arriere_plan (" & tempsVerification & "ms)")
         End If
-        ' Toujours vérifier les factures au rechargement de la page au cas où le Refresh JS échoue
-        ServiceReintegration.VerifierFacturesDematParLot()
+        
         ' pour la facture demat c'est déclanché dans la fonction rgFacturesDemat_NeedDataSource via la déclaration dans le tableau radGrid OnNeedDataSource="rgFacturesDemat_NeedDataSource"
     End Sub
 
@@ -406,6 +423,8 @@ Partial Class integrationFactures
 
     ''' Événement déclenché lors du chargement des données des factures dématérialisées (En cours)
     Protected Sub rgFacturesDemat_NeedDataSource(sender As Object, e As GridNeedDataSourceEventArgs) Handles rgFacturesDemat.NeedDataSource
+        Dim sw As New System.Diagnostics.Stopwatch()
+        sw.Start()
         Try
             Dim dt As System.Data.DataTable = GestionnaireBddFacture.getFactureDemat()
             If dt IsNot Nothing Then
@@ -416,6 +435,9 @@ Partial Class integrationFactures
             Else
                 rgFacturesDemat.DataSource = dt
             End If
+            sw.Stop()
+            Dim rowCount As Integer = If(dt IsNot Nothing, dt.Rows.Count, 0)
+            GestionnaireLog.Info("[PERFORMANCE] rgFacturesDemat_NeedDataSource a pris " & sw.ElapsedMilliseconds & " ms pour charger " & rowCount & " lignes depuis la base.")
         Catch ex As Exception
             GestionnaireLog.Error("Erreur lors du chargement des factures dématérialisées (En cours) : " & ex.Message)
         End Try
@@ -612,7 +634,11 @@ Partial Class integrationFactures
                             Dim parentItem As GridDataItem = CType(dataItem.OwnerTableView.ParentItem, GridDataItem)
                             If parentItem IsNot Nothing Then
                                 Dim lblCodeFournisseurParent As Label = CType(parentItem.FindControl("lblCodeFournisseur"), Label)
-                                If lblCodeFournisseurParent IsNot Nothing AndAlso Not String.IsNullOrEmpty(lblCodeFournisseurParent.Text.Trim()) Then
+                                Dim ddlChoixFournisseurParent As Telerik.Web.UI.RadDropDownList = CType(parentItem.FindControl("ddlChoixFournisseur"), Telerik.Web.UI.RadDropDownList)
+                                
+                                If ddlChoixFournisseurParent IsNot Nothing AndAlso ddlChoixFournisseurParent.Visible AndAlso Not String.IsNullOrEmpty(ddlChoixFournisseurParent.SelectedValue) Then
+                                    codeFournisseur = ddlChoixFournisseurParent.SelectedValue
+                                ElseIf lblCodeFournisseurParent IsNot Nothing AndAlso Not String.IsNullOrEmpty(lblCodeFournisseurParent.Text.Trim()) Then
                                     codeFournisseur = lblCodeFournisseurParent.Text.Trim()
                                 End If
                             End If
@@ -658,10 +684,11 @@ Partial Class integrationFactures
                                     lblCodePrestaLP.Text = codePrestaLP
                                 End If
                             Else
-                                GestionnaireLog.Error("GetRegleCorrespondance returned Nothing for CodeFournisseur=" & codeFournisseur & " CodePrestaFournisseur=" & codePrestaFournisseur)
+                                ' GestionnaireLog.Error("GetRegleCorrespondance returned Nothing for CodeFournisseur=" & codeFournisseur & " CodePrestaFournisseur=" & codePrestaFournisseur)
                             End If
                         Else
-                            GestionnaireLog.Error("GetCodeFournisseur returned empty for numOR=" & numOR & " numFacture=" & numFacture)
+                            ' On désactive ce log car pour les factures dématérialisées numOR est vide, ce qui provoque des centaines de logs d'erreur inutiles par page
+                            ' GestionnaireLog.Error("GetCodeFournisseur returned empty for numOR=" & numOR & " numFacture=" & numFacture)
                         End If
                     Catch ex As Exception
                         GestionnaireLog.Error("Erreur dans ItemDataBound Demat (lignes) : " & ex.Message & " - " & ex.StackTrace)
@@ -970,6 +997,9 @@ Partial Class integrationFactures
                             Dim nomLocPro As String = dtFourn.Rows(0)("F050NOM").ToString().Trim()
                             Dim codeLocPro As String = dtFourn.Rows(0)("F050KY").ToString().Trim()
 
+                            ' SAUVEGARDER LE CODE FOURNISSEUR PAR DEFAUT EN BASE
+                            GestionnaireBddFacture.MettreAJourInfosLocproDemat(idFacture, codeLocPro, nomLocPro)
+
                             Dim cellFournisseur As TableCell = dataItem("ColRaisonSociale")
                             If cellFournisseur IsNot Nothing Then
                                 Dim lblFournisseur As Label = CType(cellFournisseur.FindControl("lblFournisseur"), Label)
@@ -985,9 +1015,37 @@ Partial Class integrationFactures
                             End If
                             If cellCodeFournisseur IsNot Nothing Then
                                 Dim lblCodeFournisseur As Label = CType(cellCodeFournisseur.FindControl("lblCodeFournisseur"), Label)
-                                If lblCodeFournisseur IsNot Nothing Then
-                                    lblCodeFournisseur.Text = codeLocPro
-                                    lblCodeFournisseur.Visible = True
+                                Dim ddlChoixFournisseur As RadDropDownList = CType(cellCodeFournisseur.FindControl("ddlChoixFournisseur"), RadDropDownList)
+
+                                If dtFourn.Rows.Count > 1 AndAlso ddlChoixFournisseur IsNot Nothing Then
+                                    ' Afficher la liste déroulante
+                                    If lblCodeFournisseur IsNot Nothing Then
+                                        lblCodeFournisseur.Visible = False
+                                    End If
+                                    
+                                    ddlChoixFournisseur.Visible = True
+                                    ddlChoixFournisseur.Items.Clear()
+                                    For Each row As System.Data.DataRow In dtFourn.Rows
+                                        Dim val As String = row("F050KY").ToString().Trim()
+                                        Dim nomFourn As String = row("F050NOM").ToString().Trim()
+                                        Dim itemDdl As New DropDownListItem(val, val)
+                                        itemDdl.Attributes.Add("Nom", nomFourn)
+                                        ddlChoixFournisseur.Items.Add(itemDdl)
+                                    Next
+                                    ddlChoixFournisseur.DataBind()
+                                    
+                                    If ddlChoixFournisseur.FindItemByValue(codeLocPro) IsNot Nothing Then
+                                        ddlChoixFournisseur.SelectedValue = codeLocPro
+                                    End If
+                                Else
+                                    ' Un seul fournisseur, afficher le label normal
+                                    If ddlChoixFournisseur IsNot Nothing Then
+                                        ddlChoixFournisseur.Visible = False
+                                    End If
+                                    If lblCodeFournisseur IsNot Nothing Then
+                                        lblCodeFournisseur.Text = codeLocPro
+                                        lblCodeFournisseur.Visible = True
+                                    End If
                                 End If
                             End If
                         End If
@@ -1074,25 +1132,78 @@ Partial Class integrationFactures
             End If
 
             ' On vérifie si le fournisseur existe dans LocPro en testant d'abord le SIRET puis le SIREN
+            Dim swRow As New System.Diagnostics.Stopwatch()
+            swRow.Start()
+            
             Dim existeDansLocPro As Boolean = False
             Dim nomFournisseurLocPro As String = ""
             Dim codeFournisseurLocPro As String = ""
             Dim valeurAffichage As String = ""
 
             Dim dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siretBase, "")
+            If dtFourn Is Nothing OrElse dtFourn.Rows.Count = 0 Then
+                dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren("", sirenBase)
+            End If
+
             If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
                 existeDansLocPro = True
-                valeurAffichage = siretBase
-                codeFournisseurLocPro = dtFourn.Rows(0)("F050KY").ToString().Trim()
-                nomFournisseurLocPro = dtFourn.Rows(0)("F050NOM").ToString().Trim()
-            Else
-                dtFourn = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren("", sirenBase)
-                If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
-                    existeDansLocPro = True
-                    valeurAffichage = sirenBase
+                valeurAffichage = If(Not String.IsNullOrEmpty(siretBase), siretBase, sirenBase)
+
+                ' Gestion des multiples fournisseurs
+                If dtFourn.Rows.Count > 1 AndAlso lblCodeFournisseur IsNot Nothing Then
+                    Dim cellCode As TableCell = item("ColCodeFournisseur")
+                    Dim ddlChoixFournisseur As RadDropDownList = CType(cellCode.FindControl("ddlChoixFournisseur"), RadDropDownList)
+                    
+                    If ddlChoixFournisseur IsNot Nothing Then
+                        lblCodeFournisseur.Visible = False
+                        ddlChoixFournisseur.Visible = True
+                        
+                        ' Ne recharger que si la liste est vide ou diffrente
+                        If ddlChoixFournisseur.Items.Count <> dtFourn.Rows.Count Then
+                            ddlChoixFournisseur.Items.Clear()
+                            For Each row As System.Data.DataRow In dtFourn.Rows
+                                Dim val As String = row("F050KY").ToString().Trim()
+                                Dim nomFourn As String = row("F050NOM").ToString().Trim()
+                                Dim itemDdl As New DropDownListItem(val, val)
+                                itemDdl.Attributes.Add("Nom", nomFourn)
+                                ddlChoixFournisseur.Items.Add(itemDdl)
+                            Next
+                            ddlChoixFournisseur.DataBind()
+                        End If
+                        
+                        ' Rcuprer le code actuel s'il a dj t choisi
+                        Dim currentCode As String = ""
+                        Dim dataItem As GridDataItem = CType(item, GridDataItem)
+                        Try
+                            Dim dbCode As Object = DataBinder.Eval(dataItem.DataItem, "CodeFournisseurLocpro")
+                            If dbCode IsNot Nothing AndAlso Not IsDBNull(dbCode) Then
+                                currentCode = dbCode.ToString().Trim()
+                            End If
+                        Catch
+                        End Try
+                        
+                        If Not String.IsNullOrEmpty(currentCode) AndAlso ddlChoixFournisseur.FindItemByValue(currentCode) IsNot Nothing Then
+                            ddlChoixFournisseur.SelectedValue = currentCode
+                            codeFournisseurLocPro = currentCode
+                            nomFournisseurLocPro = ddlChoixFournisseur.SelectedItem.Attributes("Nom")
+                        Else
+                            codeFournisseurLocPro = dtFourn.Rows(0)("F050KY").ToString().Trim()
+                            nomFournisseurLocPro = dtFourn.Rows(0)("F050NOM").ToString().Trim()
+                            ddlChoixFournisseur.SelectedValue = codeFournisseurLocPro
+                        End If
+                    Else
+                        codeFournisseurLocPro = dtFourn.Rows(0)("F050KY").ToString().Trim()
+                        nomFournisseurLocPro = dtFourn.Rows(0)("F050NOM").ToString().Trim()
+                    End If
+                Else
                     codeFournisseurLocPro = dtFourn.Rows(0)("F050KY").ToString().Trim()
                     nomFournisseurLocPro = dtFourn.Rows(0)("F050NOM").ToString().Trim()
                 End If
+            End If
+            
+            swRow.Stop()
+            If swRow.ElapsedMilliseconds > 10 Then ' on logge que si ça prend plus de 10ms pour ne pas polluer si le cache marche
+                GestionnaireLog.Info("[PERFORMANCE] GererEditionFournisseurDemat a pris " & swRow.ElapsedMilliseconds & " ms pour SIRET=" & siretBase & " SIREN=" & sirenBase)
             End If
 
             If Not existeDansLocPro Then
@@ -1132,11 +1243,10 @@ Partial Class integrationFactures
                     lblFournisseur.Text = nomFournisseurLocPro
                     lblFournisseur.Visible = True
                 End If
-
+                
                 ' La colonne CODE FRN affiche le Code Fournisseur Locpro
-                If lblCodeFournisseur IsNot Nothing Then
+                If lblCodeFournisseur IsNot Nothing AndAlso lblCodeFournisseur.Visible Then
                     lblCodeFournisseur.Text = codeFournisseurLocPro
-                    lblCodeFournisseur.Visible = True
                 End If
             Else
                 ' Fournisseur introuvable : On affiche l'input avec le SIREN dedans, et on VIDE le nom et le code
@@ -1172,6 +1282,67 @@ Partial Class integrationFactures
                 txtSirenErr.ToolTip = ex.Message
             End If
         End Try
+    End Sub
+
+    Protected Sub ddlChoixFournisseur_SelectedIndexChanged(sender As Object, e As DropDownListEventArgs)
+        Dim ddl As RadDropDownList = CType(sender, RadDropDownList)
+        Dim dataItem As GridDataItem = CType(ddl.NamingContainer, GridDataItem)
+        Dim idFacture As String = dataItem.GetDataKeyValue("IdFacture").ToString()
+        Dim nouveauCode As String = ddl.SelectedValue
+        Dim nouveauNom As String = ddl.SelectedItem.Attributes("Nom")
+        If String.IsNullOrEmpty(nouveauNom) Then
+            ' Au cas où l'attribut est perdu, on essaie de retomber sur le texte
+            nouveauNom = ddl.SelectedItem.Text
+            If nouveauNom.Contains(" - ") Then
+                nouveauNom = nouveauNom.Substring(nouveauNom.IndexOf(" - ") + 3)
+            End If
+        End If
+
+        ' 1. Mettre à jour en BDD (CodeFournisseurLocpro et NomFournisseurLocpro)
+        GestionnaireBddFacture.MettreAJourInfosLocproDemat(idFacture, nouveauCode, nouveauNom)
+
+        ' 2. Retraiter la facture pour mettre à jour les règles
+        Dim siretBase As String = ""
+        Dim lblSirenText As Label = CType(dataItem.FindControl("lblSirenText"), Label)
+        If lblSirenText Is Nothing Then lblSirenText = CType(dataItem.FindControl("lblSirenTextDemat"), Label)
+        If lblSirenText IsNot Nothing Then
+            siretBase = lblSirenText.Text.Replace("&nbsp;", "").Trim()
+        End If
+
+        If Not String.IsNullOrEmpty(siretBase) Then
+            Dim errorMessage As String = ""
+            ServiceReintegration.RetraiterFactureSiretDemat(idFacture, siretBase, errorMessage, "", "", "", nouveauCode)
+            
+            ' Mettre à jour le statut affiché
+            Dim dtFacture = GestionnaireBddFacture.GetFactureDematById(idFacture)
+            If dtFacture IsNot Nothing AndAlso dtFacture.Rows.Count > 0 Then
+                Dim newStatut As String = dtFacture.Rows(0)("Statut").ToString()
+                Dim lblStatut As Label = CType(dataItem.FindControl("lblStatutDemat"), Label)
+                If lblStatut Is Nothing Then lblStatut = CType(dataItem.FindControl("lblStatut"), Label)
+                If lblStatut IsNot Nothing Then
+                    lblStatut.Text = newStatut
+                    lblStatut.CssClass = "statut-badge statut-" & newStatut.ToLower()
+                End If
+            End If
+        End If
+
+        ' 3. Mettre à jour l'affichage en ligne SANS Rebind global
+        Dim cellFournisseur As TableCell = dataItem("ColRaisonSociale")
+        If cellFournisseur IsNot Nothing Then
+            Dim lblFournisseur As Label = CType(cellFournisseur.FindControl("lblFournisseur"), Label)
+            If lblFournisseur IsNot Nothing Then
+                lblFournisseur.Text = nouveauNom
+            End If
+        End If
+
+        ' Recharger uniquement les lignes internes pour propager le nouveau code fournisseur
+        Dim nestedViewItem As GridNestedViewItem = CType(dataItem.ChildItem, GridNestedViewItem)
+        If nestedViewItem IsNot Nothing Then
+            Dim rgLignesInternes As RadGrid = CType(nestedViewItem.FindControl("rgLignesInternes"), RadGrid)
+            If rgLignesInternes IsNot Nothing Then
+                rgLignesInternes.Rebind()
+            End If
+        End If
     End Sub
 
     Protected Sub ddlStatutCycleDeVie_SelectedIndexChanged(sender As Object, e As DropDownListEventArgs)

@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Activities.Expressions
 Imports System.Collections.Generic
 Imports System.Data
@@ -331,10 +331,33 @@ Public Class ServiceReintegration
 
             GestionnaireLog.Info(dtFactures.Rows.Count & " facture(s) Demat à vérifier/valider")
 
+            ' --- OPTIMISATION BULK (N+1) ---
+            ' On vide le cache à chaque refresh pour détecter les fournisseurs nouvellement créés dans LocPro
+            GestionnaireBddFacture.ViderCacheFournisseur()
+            
+            Dim listeSirets As New List(Of String)()
+            For Each row As DataRow In dtFactures.Rows
+                Dim siret As String = ""
+                If row.Table.Columns.Contains("Siret_Vend") AndAlso Not IsDBNull(row("Siret_Vend")) AndAlso Not String.IsNullOrWhiteSpace(row("Siret_Vend").ToString()) Then
+                    siret = row("Siret_Vend").ToString().Trim()
+                ElseIf row.Table.Columns.Contains("Siren_Vend") AndAlso Not IsDBNull(row("Siren_Vend")) AndAlso Not String.IsNullOrWhiteSpace(row("Siren_Vend").ToString()) Then
+                    siret = row("Siren_Vend").ToString().Trim()
+                End If
+                If Not String.IsNullOrEmpty(siret) AndAlso Not listeSirets.Contains(siret) Then
+                    listeSirets.Add(siret)
+                End If
+            Next
+            GestionnaireBddFacture.PrechargerFournisseurs(listeSirets)
+            ' -------------------------------
+
             ' Traiter chaque facture
             For Each row As DataRow In dtFactures.Rows
                 Dim idFacture As String = row("IdFacture").ToString().Trim()
                 Dim numFacture As String = row("NumeroFacture").ToString().Trim()
+                Dim currentStatut As String = If(row.Table.Columns.Contains("Statut") AndAlso Not IsDBNull(row("Statut")), row("Statut").ToString(), "")
+                Dim currentMessage As String = If(row.Table.Columns.Contains("Message") AndAlso Not IsDBNull(row("Message")), row("Message").ToString(), "")
+                Dim currentCodeLocpro As String = If(row.Table.Columns.Contains("CodeFournisseurLocpro") AndAlso Not IsDBNull(row("CodeFournisseurLocpro")), row("CodeFournisseurLocpro").ToString(), "")
+
                 Try
                     ' Au lieu de réintégrer directement, on valide la facture
                     Dim siret As String = ""
@@ -344,7 +367,7 @@ Public Class ServiceReintegration
                         siret = row("Siren_Vend").ToString().Trim()
                     End If
                     Dim errMsg As String = ""
-                    Dim estValide As Boolean = RetraiterFactureSiretDemat(idFacture, siret, errMsg)
+                    Dim estValide As Boolean = RetraiterFactureSiretDemat(idFacture, siret, errMsg, currentStatut, currentMessage, currentCodeLocpro)
 
                     If estValide Then
                         resultat.NbSucces += 1
@@ -818,7 +841,7 @@ Public Class ServiceReintegration
     ''' <summary>
     ''' Re-traite une facture dématérialisée après correction du SIRET
     ''' </summary>
-    Public Shared Function RetraiterFactureSiretDemat(idFacture As String, siret As String, ByRef errorMessage As String) As Boolean
+    Public Shared Function RetraiterFactureSiretDemat(idFacture As String, siret As String, ByRef errorMessage As String, Optional currentStatut As String = "", Optional currentMessage As String = "", Optional currentCodeFournisseur As String = "", Optional forceCodeFournisseur As String = "") As Boolean
         Try
             GestionnaireLog.Info("RE-TRAITEMENT SIRET DEMAT : " & idFacture & " - " & siret)
 
@@ -827,16 +850,49 @@ Public Class ServiceReintegration
 
             ' On passe 'siret' aux deux paramètres, car la valeur saisie peut être un SIRET (14) ou un SIREN (9)
             Dim dtFourn As DataTable = GestionnaireBddFacture.RechercherFournisseurParSiretOuSiren(siret, siret)
-            If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
-                codeFournisseur = dtFourn.Rows(0)("F050KY").ToString().Trim()
-                If dtFourn.Columns.Contains("F050NOM") Then
-                    raisonSociale = dtFourn.Rows(0)("F050NOM").ToString().Trim()
+            
+            If Not String.IsNullOrEmpty(forceCodeFournisseur) Then
+                codeFournisseur = forceCodeFournisseur
+                If dtFourn IsNot Nothing Then
+                    For Each row As DataRow In dtFourn.Rows
+                        If row("F050KY").ToString().Trim() = forceCodeFournisseur Then
+                            If dtFourn.Columns.Contains("F050NOM") Then
+                                raisonSociale = row("F050NOM").ToString().Trim()
+                            End If
+                            Exit For
+                        End If
+                    Next
+                End If
+            Else
+                If dtFourn IsNot Nothing AndAlso dtFourn.Rows.Count > 0 Then
+                    ' Si un currentCodeFournisseur a été fourni (par exemple par un choix précédent), on essaie de le conserver
+                    If Not String.IsNullOrEmpty(currentCodeFournisseur) Then
+                        For Each row As DataRow In dtFourn.Rows
+                            If row("F050KY").ToString().Trim() = currentCodeFournisseur Then
+                                codeFournisseur = currentCodeFournisseur
+                                If dtFourn.Columns.Contains("F050NOM") Then
+                                    raisonSociale = row("F050NOM").ToString().Trim()
+                                End If
+                                Exit For
+                            End If
+                        Next
+                    End If
+                    
+                    ' Si on n'a pas pu conserver le code précédent (ou s'il n'y en avait pas), on prend le premier
+                    If String.IsNullOrEmpty(codeFournisseur) Then
+                        codeFournisseur = dtFourn.Rows(0)("F050KY").ToString().Trim()
+                        If dtFourn.Columns.Contains("F050NOM") Then
+                            raisonSociale = dtFourn.Rows(0)("F050NOM").ToString().Trim()
+                        End If
+                    End If
                 End If
             End If
 
             If String.IsNullOrEmpty(codeFournisseur) Then
                 GestionnaireLog.Warn("Fournisseur introuvable avec SIREN/SIRET : " & siret)
-                GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "FOURNISSEUR_INTROUVABLE", "Le SIREN/SIRET saisi est introuvable dans la base LocPro.")
+                If currentStatut <> "FOURNISSEUR_INTROUVABLE" OrElse currentMessage <> "Le SIREN/SIRET saisi est introuvable dans la base LocPro." Then
+                    GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "FOURNISSEUR_INTROUVABLE", "Le SIREN/SIRET saisi est introuvable dans la base LocPro.")
+                End If
                 errorMessage = "Le SIREN/SIRET saisi est introuvable dans la base LocPro."
                 Return False
             End If
@@ -844,7 +900,7 @@ Public Class ServiceReintegration
             GestionnaireLog.Info("Fournisseur trouve : " & codeFournisseur)
 
             ' Mise à jour de la raison sociale pour l'affichage IHM
-            If Not String.IsNullOrEmpty(codeFournisseur) Then
+            If Not String.IsNullOrEmpty(codeFournisseur) AndAlso currentCodeFournisseur <> codeFournisseur Then
                 GestionnaireBddFacture.MettreAJourInfosLocproDemat(idFacture, codeFournisseur, raisonSociale)
             End If
 
@@ -852,7 +908,9 @@ Public Class ServiceReintegration
 
             If lignes Is Nothing OrElse lignes.Rows.Count = 0 Then
                 GestionnaireLog.Warn("Aucune ligne de facture pour : " & idFacture)
-                GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "ERROR", "La facture ne contient aucune ligne de prestation.")
+                If currentStatut <> "ERROR" OrElse currentMessage <> "La facture ne contient aucune ligne de prestation." Then
+                    GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "ERROR", "La facture ne contient aucune ligne de prestation.")
+                End If
                 errorMessage = "La facture ne contient aucune ligne de prestation."
                 Return False
             End If
@@ -880,17 +938,23 @@ Public Class ServiceReintegration
             Next
 
             If toutesLignesMatchees Then
-                GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "A_INTEGRER", "La facture est prête à être intégrée dans Locpro, veuillez cliquer sur comptabiliser pour le faire.")
+                If currentStatut <> "A_INTEGRER" Then
+                    GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "A_INTEGRER", "La facture est prête à être intégrée dans Locpro, veuillez cliquer sur comptabiliser pour le faire.")
+                End If
                 Return True
             Else
                 GestionnaireLog.Warn("SIRET validé, mais certaines prestations n'ont pas de correspondance LocPro.")
-                GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "PRESTATION_INEXISTANTE", "Certaines prestations n'ont pas de correspondance LocPro")
+                If currentStatut <> "PRESTATION_INEXISTANTE" Then
+                    GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "PRESTATION_INEXISTANTE", "Certaines prestations n'ont pas de correspondance LocPro")
+                End If
                 Return True
             End If
 
         Catch exFournisseur As Exceptions.FournisseurIntrouvableException
             GestionnaireLog.Warn("Fournisseur introuvable avec SIRET : " & siret)
-            GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "FOURNISSEUR_INTROUVABLE", "Le SIREN/SIRET saisi est introuvable dans la base LocPro.")
+            If currentStatut <> "FOURNISSEUR_INTROUVABLE" Then
+                GestionnaireBddFacture.MettreAJourStatutFactureDemat(idFacture, "FOURNISSEUR_INTROUVABLE", "Le SIREN/SIRET saisi est introuvable dans la base LocPro.")
+            End If
             errorMessage = "Le SIREN/SIRET saisi est introuvable dans la base LocPro."
             Return False
         Catch ex As Exception

@@ -8,9 +8,7 @@ Imports SiteWeb
 
 Public Class GestionnaireBddFacture
     Const BaseDeDonnees As String = "BASE_TEST"
-    Const BaseDeDonneesTest As String = "BASE_TEST"
     Const BaseDeDonneesLP As String = "LocPro_Test"
-    Const BaseDeDonneesLPTest As String = "LocPro_Test"
 
     Public Shared Function retournerInfosVeh(immat As String) As DataTable
         Dim sql As String = "SELECT code_parc, code_modele FROM parc_importe where immat = '" & immat & "';"
@@ -87,51 +85,167 @@ Public Class GestionnaireBddFacture
         End Using
     End Function
 
+    Private Shared CacheFournisseur As New System.Collections.Concurrent.ConcurrentDictionary(Of String, DataTable)()
+
+    Public Shared Sub ViderCacheFournisseur()
+        CacheFournisseur.Clear()
+    End Sub
+
+    Public Shared Sub PrechargerFournisseurs(sirets As List(Of String))
+        If sirets Is Nothing OrElse sirets.Count = 0 Then Return
+        Try
+            Dim siretsFormattees As New List(Of String)()
+            Dim sirensFormattees As New List(Of String)()
+            
+            For Each siret In sirets
+                If String.IsNullOrWhiteSpace(siret) Then Continue For
+                Dim sClean As String = siret.Trim().Replace(" ", "")
+                siretsFormattees.Add(sClean.Replace("'", "''"))
+                
+                If sClean.Length = 14 Then
+                    sirensFormattees.Add(sClean.Substring(0, 9).Replace("'", "''"))
+                Else
+                    sirensFormattees.Add(sClean.Replace("'", "''"))
+                End If
+            Next
+            
+            If siretsFormattees.Count = 0 Then Return
+
+            Dim inClauseSirets As String = String.Join("','", siretsFormattees)
+            Dim inClauseSirens As String = String.Join("','", sirensFormattees.Distinct())
+
+            ' On cherche par SIRET dans F020SIRET
+            Dim sql As String = "SELECT F020ADR.F020SIRET, F050TIERS.F050KY, F050TIERS.F050NOM FROM F050TIERS INNER JOIN F020ADR ON F050TIERS.K050020ADR = F020ADR.F020KY WHERE F020ADR.F020SIRET IN ('" & inClauseSirets & "');"
+            
+            ' On cherche par SIREN dans F050SIREN OU dans F020SIRET (cas où le SIREN est stocké dans la colonne SIRET)
+            Dim sqlSiren As String = "SELECT F050SIREN, F050KY, F050NOM FROM F050TIERS WHERE F050SIREN IN ('" & inClauseSirens & "') UNION SELECT F020ADR.F020SIRET AS F050SIREN, F050TIERS.F050KY, F050TIERS.F050NOM FROM F050TIERS INNER JOIN F020ADR ON F050TIERS.K050020ADR = F020ADR.F020KY WHERE F020ADR.F020SIRET IN ('" & inClauseSirens & "');"
+            
+            Using acd As New AccesDonnees()
+                Dim dtSiret As DataTable = acd.creation_datatable(sql, BaseDeDonneesLP)
+                Dim dtSiren As DataTable = acd.creation_datatable(sqlSiren, BaseDeDonneesLP)
+                
+                For Each siret In sirets
+                    Dim siretClean As String = siret.Trim().Replace(" ", "")
+                    Dim sirenClean As String = siretClean
+                    If siretClean.Length = 14 Then sirenClean = siretClean.Substring(0, 9)
+                    
+                    Dim dtResult As New DataTable()
+                    dtResult.Columns.Add("F050KY", GetType(String))
+                    dtResult.Columns.Add("F050NOM", GetType(String))
+                    
+                    Dim found As Boolean = False
+                    If dtSiret IsNot Nothing Then
+                        For Each row As DataRow In dtSiret.Rows
+                            If row("F020SIRET").ToString().Trim() = siretClean Then
+                                dtResult.Rows.Add(row("F050KY"), row("F050NOM"))
+                                found = True
+                            End If
+                        Next
+                    End If
+                    
+                    If Not found AndAlso dtSiren IsNot Nothing Then
+                        For Each row As DataRow In dtSiren.Rows
+                            If row("F050SIREN").ToString().Trim() = sirenClean Then
+                                dtResult.Rows.Add(row("F050KY"), row("F050NOM"))
+                                found = True
+                            End If
+                        Next
+                    End If
+                    
+                    ' On met en cache même si c'est vide
+                    Dim cacheKey As String = siretClean & "|" & sirenClean
+                    CacheFournisseur(cacheKey) = dtResult
+                    
+                    ' Aussi pour la clé ("" | sirenClean)
+                    CacheFournisseur("" & "|" & sirenClean) = dtResult
+                    ' Et pour (siretClean | "")
+                    CacheFournisseur(siretClean & "|" & "") = dtResult
+                Next
+            End Using
+        Catch ex As Exception
+            GestionnaireLog.Error("Erreur PrechargerFournisseurs : " & ex.Message)
+        End Try
+    End Sub
+
     Public Shared Function RechercherFournisseurParSiretOuSiren(siret As String, siren As String) As DataTable
-        Dim siretClean As String = siret.Trim().Replace(" ", "")
-        Dim sirenClean As String = siren.Trim().Replace(" ", "")
+        Dim siretClean As String = If(siret Is Nothing, "", siret.Trim().Replace(" ", ""))
+        Dim sirenClean As String = If(siren Is Nothing, "", siren.Trim().Replace(" ", ""))
+        
+        ' 1) On normalise d'abord les données
+        If siretClean.Length = 14 AndAlso sirenClean = siretClean Then
+            sirenClean = siretClean.Substring(0, 9)
+        End If
+        
+        If siretClean.Length = 14 AndAlso String.IsNullOrEmpty(sirenClean) Then
+            sirenClean = siretClean.Substring(0, 9)
+        ElseIf sirenClean.Length = 14 AndAlso String.IsNullOrEmpty(siretClean) Then
+            siretClean = sirenClean
+            sirenClean = sirenClean.Substring(0, 9)
+        End If
+
+        ' 2) On vérifie le cache ENSUITE !
+        Dim cacheKey As String = siretClean & "|" & sirenClean
+        If CacheFournisseur.ContainsKey(cacheKey) Then
+            Return CacheFournisseur(cacheKey)
+        End If
+
         Dim dt As DataTable = Nothing
-        Dim sql As String = ""
         
         Using acd As New AccesDonnees()
-            ' 1. Chercher dans le champ SIRET (F020SIRET) avec le vrai SIRET
+            Dim clauses As New List(Of String)()
+
             If Not String.IsNullOrEmpty(siretClean) Then
-                sql = "SELECT F050TIERS.F050KY, F050TIERS.F050NOM FROM F050TIERS INNER JOIN F020ADR ON F050TIERS.K050020ADR = F020ADR.F020KY WHERE F020ADR.F020SIRET = '" & siretClean & "';"
-                dt = acd.creation_datatable(sql, BaseDeDonneesLP)
+                clauses.Add("SELECT F050TIERS.F050KY, F050TIERS.F050NOM FROM F050TIERS INNER JOIN F020ADR ON F050TIERS.K050020ADR = F020ADR.F020KY WHERE F020ADR.F020SIRET = '" & siretClean & "'")
             End If
             
-            If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then Return dt
-            
-            ' 2. Chercher dans le champ SIRET (F020SIRET) avec le SIREN (au cas où il a été saisi dans le champ SIRET)
             If Not String.IsNullOrEmpty(sirenClean) Then
-                sql = "SELECT F050TIERS.F050KY, F050TIERS.F050NOM FROM F050TIERS INNER JOIN F020ADR ON F050TIERS.K050020ADR = F020ADR.F020KY WHERE F020ADR.F020SIRET = '" & sirenClean & "';"
+                clauses.Add("SELECT F050TIERS.F050KY, F050TIERS.F050NOM FROM F050TIERS INNER JOIN F020ADR ON F050TIERS.K050020ADR = F020ADR.F020KY WHERE F020ADR.F020SIRET = '" & sirenClean & "'")
+                clauses.Add("SELECT F050KY, F050NOM FROM F050TIERS WHERE F050SIREN = '" & sirenClean & "'")
+            End If
+
+            If clauses.Count > 0 Then
+                Dim sql As String = String.Join(" UNION ", clauses)
+                ' Pour éviter les doublons avec le même F050KY
+                sql = "SELECT DISTINCT F050KY, F050NOM FROM (" & sql & ") AS T"
                 dt = acd.creation_datatable(sql, BaseDeDonneesLP)
             End If
             
-            If dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then Return dt
-            
-            ' 3. Chercher dans le champ SIREN (F050SIREN) avec le SIREN
-            If Not String.IsNullOrEmpty(sirenClean) Then
-                sql = "SELECT F050KY, F050NOM FROM F050TIERS WHERE F050SIREN = '" & sirenClean & "';"
-                dt = acd.creation_datatable(sql, BaseDeDonneesLP)
+            If dt Is Nothing Then
+                dt = New DataTable()
+                dt.Columns.Add("F050KY", GetType(String))
+                dt.Columns.Add("F050NOM", GetType(String))
             End If
-            
+
+            CacheFournisseur(cacheKey) = dt
             Return dt
         End Using
     End Function
 
 
-    Public Shared Function GetRegleCorrespondance(codeFournisseur As String, codePresta As String) As JObject
-        Dim sql As String = "SELECT RegleLP FROM CorrespondancePrestaFournisseur WHERE CodeFournisseur = '" & codeFournisseur & "'AND Actif = 1 AND CodePrestaFournisseur = '" & codePresta & "';"
+    Private Shared CacheRegleCorrespondance As New System.Collections.Concurrent.ConcurrentDictionary(Of String, String)()
 
+    Public Shared Function GetRegleCorrespondance(codeFournisseur As String, codePresta As String) As JObject
+        Dim cacheKey As String = codeFournisseur & "|" & codePresta
+        
+        If CacheRegleCorrespondance.ContainsKey(cacheKey) Then
+            Dim cachedJson As String = CacheRegleCorrespondance(cacheKey)
+            If String.IsNullOrEmpty(cachedJson) Then Return Nothing
+            Return JObject.Parse(cachedJson)
+        End If
+
+        Dim sql As String = "SELECT RegleLP FROM CorrespondancePrestaFournisseur WHERE CodeFournisseur = '" & codeFournisseur & "'AND Actif = 1 AND CodePrestaFournisseur = '" & codePresta & "';"
         Dim dt As DataTable
         Using acd As New AccesDonnees()
             dt = acd.creation_datatable(sql, BaseDeDonnees)
         End Using
 
-        If dt Is Nothing OrElse dt.Rows.Count = 0 Then Return Nothing
+        If dt Is Nothing OrElse dt.Rows.Count = 0 Then
+            CacheRegleCorrespondance(cacheKey) = ""
+            Return Nothing
+        End If
 
         Dim jsonString As String = dt.Rows(0)("RegleLP").ToString()
+        CacheRegleCorrespondance(cacheKey) = jsonString
         Return JObject.Parse(jsonString)
     End Function
 
@@ -421,9 +535,16 @@ Public Class GestionnaireBddFacture
     ''' <param name="codeFournisseur">Code fournisseur</param>
     ''' <param name="codePrestaFournisseur">Code prestation fournisseur</param>
     ''' <returns>True si la règle existe, False sinon</returns>
+    Private Shared CacheRegleExiste As New System.Collections.Concurrent.ConcurrentDictionary(Of String, Boolean)()
+
     Public Shared Function RegleCorrespondanceExiste(codeFournisseur As String, codePrestaFournisseur As String) As Boolean
         If String.IsNullOrEmpty(codeFournisseur) OrElse String.IsNullOrEmpty(codePrestaFournisseur) Then
             Return False
+        End If
+        
+        Dim cacheKey As String = codeFournisseur & "|" & codePrestaFournisseur
+        If CacheRegleExiste.ContainsKey(cacheKey) Then
+            Return CacheRegleExiste(cacheKey)
         End If
 
         Try
@@ -436,11 +557,14 @@ Public Class GestionnaireBddFacture
                 Using dr As SqlDataReader = acd.RetournerDataReader(sql, BaseDeDonnees)
                     If dr.Read() Then
                         Dim count As Integer = Convert.ToInt32(dr(0))
-                        Return count > 0
+                        Dim existe As Boolean = (count > 0)
+                        CacheRegleExiste(cacheKey) = existe
+                        Return existe
                     End If
                 End Using
             End Using
 
+            CacheRegleExiste(cacheKey) = False
             Return False
 
         Catch ex As Exception
@@ -803,6 +927,8 @@ Public Class GestionnaireBddFacture
                                "numOr AS NumOR, " &
                                "Message AS Message, " &
                                "IdFacture, " &
+                               "CodeFournisseurLocpro, " &
+                               "NomFournisseurLocpro, " &
                                "StatutCycleDeVie " &
                                "FROM D_invoice " &
                                "ORDER BY DateCreation DESC"
@@ -821,7 +947,7 @@ Public Class GestionnaireBddFacture
     ''' </summary>
     Public Shared Function GetFactureDematById(idFacture As String) As DataTable
         Try
-            Dim sql As String = "SELECT IdFacture, NumeroFacture, SocieteEmet, numOr, MontantTotal, Devise, MontantHT, MontantTVA, DateEmi, DateEcheance, NumeroTVA_Vend, Siret_Vend, Siren_Vend, Statut " &
+            Dim sql As String = "SELECT IdFacture, NumeroFacture, SocieteEmet, numOr, MontantTotal, Devise, MontantHT, MontantTVA, DateEmi, DateEcheance, NumeroTVA_Vend, Siret_Vend, Siren_Vend, Statut, CodeFournisseurLocpro, NomFournisseurLocpro " &
                                "FROM D_invoice " &
                                "WHERE IdFacture = '" & idFacture.Replace("'", "''") & "'"
 
@@ -956,7 +1082,7 @@ Public Class GestionnaireBddFacture
                         cmd.Parameters.AddWithValue("@Siren", valeurSaisie.Substring(0, 9))
                         cmd.Parameters.AddWithValue("@Siret", valeurSaisie)
                     Else
-                        sql = "UPDATE D_invoice SET Siren_Vend = @Siren WHERE IdFacture = @IdFacture"
+                        sql = "UPDATE D_invoice SET Siren_Vend = @Siren, Siret_Vend = NULL WHERE IdFacture = @IdFacture"
                         cmd.Parameters.AddWithValue("@Siren", valeurSaisie)
                     End If
                     
@@ -992,7 +1118,7 @@ Public Class GestionnaireBddFacture
 
     Public Shared Sub MettreAJourInfosLocproDemat(idFacture As String, codeFournisseur As String, nomFournisseur As String)
         Try
-            Dim sql As String = "UPDATE D_invoice SET CodeFournisseurLocpro = @CodeFournisseur, NomFournisseurLocpro = @NomFournisseur WHERE IdFacture = @IdFacture"
+            Dim sql As String = "UPDATE D_invoice SET CodeFournisseurLocpro = @CodeFournisseur, NomFournisseurLocpro = @NomFournisseur WHERE IdFacture = @IdFacture AND (ISNULL(CodeFournisseurLocpro, '') <> @CodeFournisseur OR ISNULL(NomFournisseurLocpro, '') <> @NomFournisseur)"
             Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@CodeFournisseur", codeFournisseur)
@@ -1027,7 +1153,7 @@ Public Class GestionnaireBddFacture
 
     Public Shared Sub MettreAJourStatutFactureDemat(idFacture As String, statut As String, Optional message As String = "")
         Try
-            Dim sql As String = "UPDATE D_invoice SET Statut = @Statut, Message = @Message WHERE IdFacture = @IdFacture"
+            Dim sql As String = "UPDATE D_invoice SET Statut = @Statut, Message = @Message WHERE IdFacture = @IdFacture AND (ISNULL(Statut, '') <> @Statut OR ISNULL(Message, '') <> @Message)"
             Using conn As New SqlConnection(ConfigurationManager.ConnectionStrings(BaseDeDonnees).ConnectionString)
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@Statut", statut)
@@ -1109,7 +1235,7 @@ Public Class GestionnaireBddFacture
     End Function
     Public Shared Function ObtenirFacturesDematAVerifier() As DataTable
         Try
-            Dim sql As String = "SELECT IdFacture, NumeroFacture, SocieteEmet, numOr, MontantTotal, MontantHT, MontantTVA, DateEmi, DateEcheance, NumeroTVA_Vend, Siret_Vend, Siren_Vend " &
+            Dim sql As String = "SELECT IdFacture, NumeroFacture, SocieteEmet, numOr, MontantTotal, MontantHT, MontantTVA, DateEmi, DateEcheance, NumeroTVA_Vend, Siret_Vend, Siren_Vend, Statut, Message, CodeFournisseurLocpro " &
                                "FROM D_invoice " &
                                "WHERE Statut IN ('ERROR', 'A_INTEGRER', 'PRESTATION_INEXISTANTE', 'FOURNISSEUR_INTROUVABLE', 'FOURNISSEUR_INEXISTANT') " &
                                "ORDER BY DateCreation DESC"
